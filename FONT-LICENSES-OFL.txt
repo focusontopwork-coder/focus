@@ -1,6 +1,14 @@
 Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)
 
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
+Copyright 2022 The Noto Project Authors (https://github.com/notofonts/arabic)
+  - Used for Arabic text (font files: arabic_regular.ttf, arabic_semibold.ttf,
+    arabic_bold.ttf). Static weights were instanced from the upstream
+    variable font (NotoSansArabic[wdth,wght].ttf, wdth pinned at 100, the
+    default width) using fonttools, matching the "Noto Sans Arabic" family
+    specified in the Figma design (confirmed via Figma's design-context data
+    for the account/profile AR screens, e.g. node 7:1791).
+
+Both fonts are licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 https://scripts.sil.org/OFL
 
