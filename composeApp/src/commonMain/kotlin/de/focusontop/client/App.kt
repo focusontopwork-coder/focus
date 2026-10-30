@@ -83,7 +83,7 @@ fun App(debugStartScreen: Screen? = null, debugLang: de.focusontop.client.i18n.L
 
     val state = remember {
         AppState().apply {
-            if (debugLang != null) lang = debugLang
+            if (debugLang != null) setLanguage(debugLang)
             if (debugStartScreen != null) { stack.clear(); stack.add(debugStartScreen) }
         }
     }
