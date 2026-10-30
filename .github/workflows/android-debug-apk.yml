@@ -31,7 +31,17 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build debug APK
-        run: ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:assembleDebug --no-daemon --stacktrace 2>&1 | tee build-ci.log
+
+      - name: Report failure details
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -n 250 build-ci.log > /tmp/fail.txt || echo "no log" > /tmp/fail.txt
+          gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/comments" -f body="$(cat /tmp/fail.txt)"
 
       - name: Find APK
         id: apk
