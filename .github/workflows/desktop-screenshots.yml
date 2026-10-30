@@ -29,8 +29,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Install Xvfb + ImageMagick
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb imagemagick
+      - name: Install Xvfb + ImageMagick + xdotool
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb imagemagick xdotool
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
@@ -53,10 +53,16 @@ jobs:
             for S in $SCREENS; do
               echo "=== $S ($LANGC) ==="
               SCREEN="$S" LANG_CODE="$LANGC" WIDTH_DP=390 HEIGHT_DP=900 \
-                ./gradlew :composeApp:desktopRun --no-daemon -q \
+                ./gradlew :composeApp:desktopRun -q \
                 > "screenshots/${S}_${LANGC}.gradle.log" 2>&1 &
               APP_PID=$!
-              sleep 7
+              # Poll up to 25s for the window to actually appear (first launch
+              # is slow: cold JVM + Skia init), instead of a single fixed sleep.
+              for t in $(seq 1 25); do
+                sleep 1
+                if xdotool search --name "QA" >/dev/null 2>&1; then break; fi
+              done
+              sleep 2
               import -window root "screenshots/${S}_${LANGC}.png" || echo "capture failed for ${S}_${LANGC}" >> screenshots/_errors.log
               kill $APP_PID 2>/dev/null || true
               # desktopRun forks the actual java process; make sure nothing lingers
@@ -67,8 +73,6 @@ jobs:
           done
 
           kill $XVFB_PID 2>/dev/null || true
-          # Keep only successful PNGs + the error log in the final bundle; drop the noisy gradle logs.
-          rm -f screenshots/*.gradle.log
           ls -la screenshots
 
       - name: Zip the screenshot bundle
