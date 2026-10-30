@@ -1,0 +1,76 @@
+Type-safe project accessors is an incubating feature.
+> Task :composeApp:preBuild UP-TO-DATE
+> Task :composeApp:preDebugBuild UP-TO-DATE
+> Task :composeApp:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :composeApp:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :composeApp:convertXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :composeApp:copyNonXmlValueResourcesForAndroidMain NO-SOURCE
+> Task :composeApp:prepareComposeResourcesTaskForAndroidMain NO-SOURCE
+> Task :composeApp:generateResourceAccessorsForAndroidMain NO-SOURCE
+> Task :composeApp:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :composeApp:copyNonXmlValueResourcesForCommonMain UP-TO-DATE
+> Task :composeApp:prepareComposeResourcesTaskForCommonMain UP-TO-DATE
+> Task :composeApp:generateResourceAccessorsForCommonMain UP-TO-DATE
+> Task :composeApp:generateActualResourceCollectorsForAndroidMain UP-TO-DATE
+> Task :composeApp:generateComposeResClass UP-TO-DATE
+> Task :composeApp:generateExpectResourceCollectorsForCommonMain UP-TO-DATE
+> Task :composeApp:convertXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :composeApp:copyNonXmlValueResourcesForAndroidDebug NO-SOURCE
+> Task :composeApp:prepareComposeResourcesTaskForAndroidDebug NO-SOURCE
+> Task :composeApp:generateResourceAccessorsForAndroidDebug NO-SOURCE
+> Task :composeApp:checkDebugAarMetadata UP-TO-DATE
+> Task :composeApp:generateDebugResValues UP-TO-DATE
+> Task :composeApp:processDebugGoogleServices UP-TO-DATE
+> Task :composeApp:mapDebugSourceSetPaths UP-TO-DATE
+> Task :composeApp:generateDebugResources UP-TO-DATE
+> Task :composeApp:mergeDebugResources UP-TO-DATE
+> Task :composeApp:packageDebugResources UP-TO-DATE
+> Task :composeApp:parseDebugLocalResources UP-TO-DATE
+> Task :composeApp:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :composeApp:extractDeepLinksDebug UP-TO-DATE
+> Task :composeApp:processDebugMainManifest UP-TO-DATE
+> Task :composeApp:processDebugManifest UP-TO-DATE
+> Task :composeApp:processDebugManifestForPackage UP-TO-DATE
+> Task :composeApp:processDebugResources UP-TO-DATE
+> Task :composeApp:javaPreCompileDebug UP-TO-DATE
+> Task :composeApp:mergeDebugShaders UP-TO-DATE
+> Task :composeApp:compileDebugShaders NO-SOURCE
+> Task :composeApp:copyDebugComposeResourcesToAndroidAssets UP-TO-DATE
+> Task :composeApp:debugAssetsCopyForAGP NO-SOURCE
+> Task :composeApp:generateDebugAssets UP-TO-DATE
+> Task :composeApp:mergeDebugAssets UP-TO-DATE
+> Task :composeApp:compressDebugAssets UP-TO-DATE
+> Task :composeApp:desugarDebugFileDependencies UP-TO-DATE
+> Task :composeApp:checkDebugDuplicateClasses UP-TO-DATE
+> Task :composeApp:mergeExtDexDebug UP-TO-DATE
+> Task :composeApp:mergeLibDexDebug UP-TO-DATE
+> Task :composeApp:mergeDebugJniLibFolders UP-TO-DATE
+> Task :composeApp:mergeDebugNativeLibs UP-TO-DATE
+> Task :composeApp:stripDebugDebugSymbols UP-TO-DATE
+> Task :composeApp:validateSigningDebug UP-TO-DATE
+> Task :composeApp:writeDebugAppMetadata UP-TO-DATE
+> Task :composeApp:writeDebugSigningConfigVersions UP-TO-DATE
+
+> Task :composeApp:compileDebugKotlinAndroid
+w: file:///Users/kokyaziz/Downloads/focus-on-top---creative-production/client-app-v2/composeApp/src/androidMain/kotlin/de/focusontop/client/platform/Platform.android.kt:47:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. You can use -Xexpect-actual-classes flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/kokyaziz/Downloads/focus-on-top---creative-production/client-app-v2/composeApp/src/commonMain/kotlin/de/focusontop/client/platform/Platform.kt:8:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. You can use -Xexpect-actual-classes flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///Users/kokyaziz/Downloads/focus-on-top---creative-production/client-app-v2/composeApp/src/commonMain/kotlin/de/focusontop/client/ui/CommunityScreens.kt:300:29 Condition is always 'true'.
+
+> Task :composeApp:compileDebugJavaWithJavac NO-SOURCE
+> Task :composeApp:dexBuilderDebug
+> Task :composeApp:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :composeApp:processDebugJavaRes
+> Task :composeApp:mergeProjectDexDebug
+> Task :composeApp:mergeDebugJavaResource
+> Task :composeApp:packageDebug
+> Task :composeApp:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :composeApp:assembleDebug
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 17s
+43 actionable tasks: 6 executed, 37 up-to-date

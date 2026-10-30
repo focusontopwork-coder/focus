@@ -1,0 +1,244 @@
+package de.focusontop.client.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import de.focusontop.client.data.ApiError
+import de.focusontop.client.data.AppNotification
+import de.focusontop.client.data.AppState
+import de.focusontop.client.data.Media
+import de.focusontop.client.data.Screen
+import de.focusontop.client.data.Tab
+import de.focusontop.client.data.asBool
+import de.focusontop.client.i18n.LocalLang
+import de.focusontop.client.i18n.LocalStrings
+import de.focusontop.client.i18n.tr
+import de.focusontop.client.platform.nowEpochMs
+import de.focusontop.client.platform.openUrl
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonPrimitive
+
+@Composable
+fun NotificationsScreen(state: AppState) {
+    val s = LocalStrings.current
+    val lang = LocalLang.current
+    val scope = rememberCoroutineScope()
+    var items by remember { mutableStateOf<List<AppNotification>?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var filter by remember { mutableStateOf("all") }
+
+    suspend fun load() {
+        try { items = state.api.clientNotifications(); error = null }
+        catch (_: ApiError) {
+            // older server: fall back to the plain list
+            runCatching { state.api.notifications() }.onSuccess { items = it; error = null }.onFailure { error = s.loadError }
+        }
+    }
+    LaunchedEffect(Unit) { load() }
+
+    fun markRead(n: AppNotification) {
+        if (!n.isRead.asBool()) scope.launch { runCatching { state.api.markRead(n.id) } }
+        items = items?.map { if (it.id == n.id) it.copy(isRead = JsonPrimitive(true)) else it }
+    }
+
+    fun open(n: AppNotification) {
+        markRead(n)
+        when (n.relatedType) {
+            "file" -> n.relatedId?.let { id -> state.go(Screen.Viewer(listOf(id), 0)) }
+            "invoice" -> state.go(Screen.Invoices)
+            "task", "project" -> state.go(Screen.Projects)
+            "appointment", "calendar" -> { state.tab = Tab.CALENDAR; state.back() }
+            "chat" -> state.go(Screen.Chat())
+            "subscription" -> { state.tab = Tab.PROFILE; state.back() }
+            "community" -> n.relatedId?.let { id -> if (n.type == "community_follow") state.go(Screen.ClientProfile(id)) else state.go(Screen.Post(id)) }
+        }
+        state.refresh()
+    }
+
+    val requested = state.home?.appointments.orEmpty().filter { it.status == "requested" }
+    val pending = state.home?.files.orEmpty().filter { !it.mine && it.status == "ready_for_review" }
+    val now = nowEpochMs()
+    val list = items.orEmpty().filter {
+        when (filter) {
+            "files" -> it.kind == "files"
+            "appointments" -> it.kind == "appointments"
+            "invoices" -> it.kind == "invoices"
+            "messages" -> it.kind == "messages"
+            else -> true
+        }
+    }
+    val chips = listOf(
+        "all" to tr("Alle", "All", "الكل"), "files" to tr("Freigaben", "Approvals", "موافقات"),
+        "appointments" to tr("Termine", "Appointments", "مواعيد"), "invoices" to tr("Rechnungen", "Invoices", "فواتير"),
+        "messages" to tr("Nachrichten", "Messages", "رسائل"),
+    )
+    val tToday = tr("Heute", "Today", "اليوم")
+    val tWeek = tr("Diese Woche", "This week", "هذا الأسبوع")
+    val tOlder = tr("Älter", "Older", "أقدم")
+    val dayMs = 86_400_000L
+    val today = list.filter { (now - (epochOf(it.createdAt) ?: 0)) < dayMs }
+    val week = list.filter { (now - (epochOf(it.createdAt) ?: 0)) in dayMs until 7 * dayMs }
+    val older = list.filter { (now - (epochOf(it.createdAt) ?: 0)) >= 7 * dayMs }
+
+    Column(Modifier.fillMaxSize().screenBg().statusBarsPadding().navigationBarsPadding()) {
+        ScreenHeader(s.notifications, onBack = { state.back() }) {
+            if (items?.any { !it.isRead.asBool() } == true) {
+                IconTile(Ic.CheckAll, {
+                    scope.launch {
+                        runCatching { state.api.markAllRead() }
+                        items = items?.map { it.copy(isRead = JsonPrimitive(true)) }
+                        state.clearUnread()
+                    }
+                }, desc = s.markAllRead)
+            }
+        }
+        LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(chips) { (k, label) -> ChoiceChip(label, filter == k, { filter = k }, height = 40.dp) }
+        }
+        error?.let { Box(Modifier.padding(16.dp)) { ErrorBanner(it) { scope.launch { load() } } } }
+        when {
+            items == null && error == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = C.Gold) }
+            else -> LazyColumn(contentPadding = PaddingValues(top = 12.dp, bottom = 40.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (pending.isNotEmpty() && (filter == "all" || filter == "files")) items(pending, key = { "pend-" + it.id }) { f ->
+                    Row(
+                        Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp))
+                            .background(C.Gold.copy(alpha = 0.10f)).border(1.dp, C.Gold.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                            .clickable { state.go(Screen.Viewer(listOf(f.id), 0)) }.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp))) { FileCover(f, Modifier.fillMaxSize(), 160) }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(tr("Wartet auf deine Freigabe", "Awaiting your approval", "بانتظار موافقتك"), color = C.Gold, style = T.Caption, fontWeight = FontWeight.SemiBold)
+                            Text(f.title(), color = C.Ink, style = T.BodyS, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        GoldButton(tr("Prüfen", "Review", "راجع"), { state.go(Screen.Viewer(listOf(f.id), 0)) }, small = true)
+                    }
+                }
+                if (requested.isNotEmpty() && (filter == "all" || filter == "appointments")) item {
+                    Row(
+                        Modifier.padding(horizontal = 16.dp, vertical = 4.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(C.Surface.copy(alpha = 0.85f))
+                            .border(1.dp, C.Border.copy(alpha = 0.6f), RoundedCornerShape(20.dp)).clickable { state.go(Screen.Messages) }.padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(C.Bg.copy(alpha = 0.4f)), contentAlignment = Alignment.Center) { Icon(Ic.CalendarPlus, null, tint = C.Gold) }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(tr("Ihre Anfragen", "Your requests", "طلباتك"), color = C.Ink, style = T.Body, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                tr("Termin „${requested.first().title}“ wartet auf Bestätigung", "“${requested.first().title}” is awaiting confirmation", "موعد «${requested.first().title}» بانتظار التأكيد"),
+                                color = C.Muted, style = T.Caption, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        Icon(Ic.ChevronRight, null, tint = C.Muted)
+                    }
+                }
+                if (list.isEmpty() && items != null) item { EmptyState(s.noNotifications, icon = Ic.Bell) }
+                group(tToday, today, lang, now, ::open)
+                group(tWeek, week, lang, now, ::open)
+                group(tOlder, older, lang, now, ::open)
+            }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.group(
+    title: String, list: List<AppNotification>, lang: de.focusontop.client.i18n.Lang, now: Long, open: (AppNotification) -> Unit,
+) {
+    if (list.isEmpty()) return
+    item(key = "h-$title") { Text(title, color = C.Ink, style = T.Headline, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp)) }
+    items(list, key = { it.id }) { n -> NotificationRow(n, lang, now) { open(n) } }
+}
+
+@Composable
+private fun NotificationRow(n: AppNotification, lang: de.focusontop.client.i18n.Lang, now: Long, onClick: () -> Unit) {
+    val unread = !n.isRead.asBool()
+    val kindIcon: ImageVector = when (n.kind) {
+        "appointments" -> Ic.CalendarPlus
+        "invoices" -> Ic.Receipt
+        "messages" -> Ic.Chat
+        "files" -> Ic.Play
+        else -> Ic.Shield
+    }
+    Row(
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min).background(if (unread) C.Gold.copy(alpha = 0.06f) else Color.Transparent).clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(3.dp).fillMaxHeight().background(if (unread) C.Gold else Color.Transparent))
+        Row(Modifier.weight(1f).padding(horizontal = 15.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(50.dp)) {
+                val who = n.senderName
+                if (who.isNullOrBlank() || n.kind == "invoices" || n.kind == "other") {
+                    Box(Modifier.size(46.dp).clip(RoundedCornerShape(15.dp)).background(C.Surface).border(1.dp, C.Border, RoundedCornerShape(15.dp)), contentAlignment = Alignment.Center) {
+                        Icon(kindIcon, null, tint = C.Gold, modifier = Modifier.size(21.dp))
+                    }
+                } else {
+                    InitialTile(who, 46.dp, warm = true)
+                    Box(
+                        Modifier.align(Alignment.BottomEnd).offset(x = 2.dp, y = 2.dp).size(20.dp).clip(RoundedCornerShape(6.dp)).background(if (n.kind == "files") C.Gold else Color.White),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(kindIcon, null, tint = C.Bg, modifier = Modifier.size(13.dp)) }
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(n.title ?: "", color = C.Ink, style = T.Body, fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (!n.message.isNullOrBlank()) Text(n.message, color = C.Muted, style = T.Footnote, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(relativeTime(lang, n.createdAt, now), color = C.Faint, style = T.Micro)
+            }
+            Spacer(Modifier.width(10.dp))
+            val thumb = Media.image(n.thumbnail, 200)
+            when {
+                thumb != null -> AsyncImage(model = thumb, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)))
+                n.kind == "files" && n.relatedId != null -> Box(Modifier.size(54.dp).clip(RoundedCornerShape(14.dp)).background(placeholderBrush(n.relatedId)))
+                n.kind == "appointments" -> GoldPill(tr("Ansehen", "View", "عرض"))
+                n.kind == "invoices" -> OutlinePill(tr("Laden", "Open", "تحميل"), C.Ink)
+                n.kind == "messages" -> OutlinePill(tr("Antworten", "Reply", "رد"), C.Ink)
+            }
+        }
+    }
+}

@@ -1,0 +1,4 @@
+// Put your Apple Developer Team ID here (developer.apple.com → Membership).
+TEAM_ID=
+BUNDLE_ID=de.focusontop.client
+APP_NAME=Focus On Top

@@ -1,0 +1,194 @@
+package de.focusontop.client.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import de.focusontop.client.data.AppState
+import de.focusontop.client.data.CPerson
+import de.focusontop.client.data.Media
+import de.focusontop.client.data.Screen
+import de.focusontop.client.i18n.tr
+import kotlinx.coroutines.launch
+
+/**
+ * Search tab — Instagram-style: round search field, account results and an
+ * explore grid of public posts (tap → post), filtered by caption or author.
+ */
+@Composable
+fun SearchScreen(state: AppState) {
+    val scope = rememberCoroutineScope()
+    var q by remember { mutableStateOf("") }
+    var people by remember { mutableStateOf<List<CPerson>?>(null) }
+    LaunchedEffect(q) { people = runCatching { state.api.people(q.trim()) }.getOrElse { emptyList() } }
+
+    val posts = state.feed.orEmpty().filter {
+        it.kind == "post" && (
+            q.isBlank() ||
+                it.caption.contains(q, true) ||
+                it.author.name?.contains(q, true) == true
+            )
+    }
+
+    Column(
+        Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding(),
+    ) {
+        Text(
+            tr("Suche", "Search", "بحث"),
+            color = C.Ink, style = T.Title1,
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp),
+        )
+        Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(46.dp)
+                .clip(RoundedCornerShape(999.dp)).background(C.Surface.copy(alpha = 0.7f))
+                .border(1.dp, C.Border, RoundedCornerShape(999.dp)).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Ic.Search, null, tint = C.Muted, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.width(10.dp))
+            Box(Modifier.weight(1f)) {
+                if (q.isEmpty()) Text(
+                    tr("Konten, Videos, Themen …", "Accounts, videos, topics …", "حسابات، فيديوهات، مواضيع…"),
+                    color = C.Faint, style = T.BodyS,
+                )
+                BasicTextField(
+                    q, { q = it }, singleLine = true,
+                    textStyle = T.BodyS.copy(color = C.Ink),
+                    cursorBrush = SolidColor(C.Gold), modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+        Spacer(Modifier.height(12.dp))
+
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 120.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            val pl = people.orEmpty()
+            if (q.isNotBlank() && pl.isNotEmpty()) {
+                item(span = { GridItemSpan(3) }) {
+                    Text(
+                        tr("Konten", "Accounts", "الحسابات"),
+                        color = C.Muted, style = T.Footnote, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    )
+                }
+                items(pl.size, span = { GridItemSpan(3) }) { i ->
+                    val p = pl[i]
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        InitialTile(p.name, 44.dp, p.avatar, warm = true)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            p.name, color = C.Ink, style = T.Body, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        )
+                        if (p.following) GhostButton(
+                            tr("Gefolgt", "Following", "تتابعه"),
+                            {
+                                scope.launch {
+                                    runCatching { state.api.follow(p.id) }.onSuccess { f ->
+                                        people = people?.map { if (it.id == p.id) it.copy(following = f.following) else it }
+                                        state.refreshCommunity()
+                                    }
+                                }
+                            }, small = true,
+                        ) else GoldButton(
+                            tr("Folgen", "Follow", "متابعة"),
+                            {
+                                scope.launch {
+                                    runCatching { state.api.follow(p.id) }.onSuccess { f ->
+                                        people = people?.map { if (it.id == p.id) it.copy(following = f.following) else it }
+                                        state.refreshCommunity()
+                                    }
+                                }
+                            }, small = true,
+                        )
+                    }
+                }
+            }
+
+            item(span = { GridItemSpan(3) }) {
+                Text(
+                    if (q.isBlank()) tr("Entdecken", "Explore", "استكشف") else tr("Beiträge", "Posts", "المنشورات"),
+                    color = C.Muted, style = T.Footnote, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+                )
+            }
+            if (posts.isEmpty()) item(span = { GridItemSpan(3) }) {
+                EmptyState(tr("Nichts gefunden", "Nothing found", "لا توجد نتائج"), icon = Ic.Search)
+            }
+            items(posts.size) { i ->
+                val p = posts[i]
+                Box(
+                    Modifier.aspectRatio(1f).clip(RoundedCornerShape(4.dp)).clickable {
+                        state.go(Screen.Post(p.id, p))
+                    },
+                ) {
+                    val src = p.mediaUrl?.let { Media.image(it, 600) }
+                    if (src != null) AsyncImage(
+                        model = src, contentDescription = null,
+                        contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                    ) else Box(Modifier.fillMaxSize().background(C.Surface))
+                    if (p.mediaType == "Video") Box(Modifier.align(Alignment.TopEnd).padding(6.dp)) {
+                        Icon(Ic.Play, null, tint = Color.White, modifier = Modifier.size(15.dp))
+                    }
+                    Row(
+                        Modifier.align(Alignment.BottomStart).padding(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Ic.Play, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text(p.likes.toString(), color = Color.White, style = T.Micro, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}

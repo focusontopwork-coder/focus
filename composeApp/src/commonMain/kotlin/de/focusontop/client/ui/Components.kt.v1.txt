@@ -1,0 +1,326 @@
+package de.focusontop.client.ui
+
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import de.focusontop.client.data.ClientFile
+import de.focusontop.client.data.Media
+
+/** Rounded square icon button (header actions, side rail). */
+@Composable
+fun IconTile(
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    gold: Boolean = false,
+    badge: Int = 0,
+    dot: Boolean = false,
+    circle: Boolean = false,
+    size: Dp = 46.dp,
+    desc: String? = null,
+    tint: Color? = null,
+) {
+    Box(modifier.size(size + 6.dp)) {
+        Box(
+            Modifier.align(Alignment.BottomStart).size(size).clip(if (circle) CircleShape else RoundedCornerShape(size * 0.32f))
+                .then(if (gold) Modifier.background(GoldBrush) else Modifier.background(C.Surface.copy(alpha = 0.7f)))
+                .border(1.dp, if (gold) C.Gold else C.Border.copy(alpha = 0.8f), if (circle) CircleShape else RoundedCornerShape(size * 0.32f))
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, desc, tint = tint ?: if (gold) C.Bg else C.Ink, modifier = Modifier.size(size * 0.46f)) }
+        if (badge > 0) {
+            Box(
+                Modifier.align(Alignment.TopEnd).size(20.dp).clip(CircleShape).background(C.Gold).border(2.dp, C.Bg, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Text(if (badge > 9) "9+" else badge.toString(), color = C.Bg, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold) }
+        } else if (dot) {
+            // Instagram-style pulsing dot
+            val inf = rememberInfiniteTransition()
+            val pulse by inf.animateFloat(
+                initialValue = 1f, targetValue = 1.9f,
+                animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
+                label = "dotPulse",
+            )
+            val glow by inf.animateFloat(
+                initialValue = 0.45f, targetValue = 0f,
+                animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
+                label = "dotGlow",
+            )
+            Box(Modifier.align(Alignment.TopEnd).padding(top = 9.dp, end = 9.dp).size(9.dp)) {
+                Box(
+                    Modifier.fillMaxSize().graphicsLayer { scaleX = pulse; scaleY = pulse; alpha = glow }
+                        .clip(CircleShape).background(C.Red),
+                )
+                Box(Modifier.fillMaxSize().clip(CircleShape).background(C.Red))
+            }
+        }
+    }
+}
+
+@Composable
+fun GoldButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    small: Boolean = false,
+    enabled: Boolean = true,
+    loading: Boolean = false,
+) {
+    val shape = RoundedCornerShape(if (small) 14.dp else 18.dp)
+    Row(
+        modifier.height(if (small) 40.dp else 56.dp).clip(shape)
+            .background(if (enabled) GoldBrush else Brush.verticalGradient(listOf(C.Gold.copy(alpha = 0.45f), C.Gold.copy(alpha = 0.45f))))
+            .clickable(enabled = enabled && !loading, onClick = onClick)
+            .padding(horizontal = if (small) 14.dp else 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = C.Bg, strokeWidth = 2.5.dp)
+        else {
+            if (icon != null) { Icon(icon, null, tint = C.Bg, modifier = Modifier.size(if (small) 17.dp else 20.dp)); Spacer(Modifier.width(8.dp)) }
+            Text(text, color = C.Bg, fontSize = if (small) 14.sp else 17.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: ImageVector? = null, small: Boolean = false, color: Color = C.Ink) {
+    val shape = RoundedCornerShape(if (small) 14.dp else 18.dp)
+    Row(
+        modifier.height(if (small) 40.dp else 56.dp).clip(shape).background(C.Surface.copy(alpha = 0.75f))
+            .border(1.dp, C.Border, shape).clickable(onClick = onClick).padding(horizontal = if (small) 14.dp else 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        if (icon != null) { Icon(icon, null, tint = if (color == C.Ink) C.Gold else color, modifier = Modifier.size(if (small) 16.dp else 19.dp)); Spacer(Modifier.width(8.dp)) }
+        Text(text, color = color, fontSize = if (small) 14.sp else 16.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+    }
+}
+
+/** Big screen title with an optional back / close tile and actions on the other side. */
+@Composable
+fun ScreenHeader(title: String, onBack: (() -> Unit)? = null, close: Boolean = false, actions: @Composable RowScope.() -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (onBack != null) {
+            IconTile(if (close) Ic.Close else Ic.Back, onBack)
+            Spacer(Modifier.width(10.dp))
+        }
+        Text(title, color = C.Ink, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically, content = actions)
+    }
+}
+
+/** The segmented gold meter used for storage / reels / hours. */
+@Composable
+fun SegmentMeter(fraction: Float, modifier: Modifier = Modifier, segments: Int = 10, height: Dp = 5.dp) {
+    val f = fraction.coerceIn(0f, 1f)
+    Row(modifier.fillMaxWidth().height(height), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        for (i in 0 until segments) {
+            val fill = ((f * segments) - i).coerceIn(0f, 1f)
+            Box(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(3.dp)).background(C.Border.copy(alpha = 0.7f))) {
+                if (fill > 0f) Box(Modifier.fillMaxHeight().fillMaxWidth(fill).background(C.Gold))
+            }
+        }
+    }
+}
+
+/** "Month 3 of 6": done = gold bars, now = gold dot, rest = dim bars. */
+@Composable
+fun MonthDots(index: Int, total: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        for (i in 1..total.coerceAtMost(12)) {
+            when {
+                i < index -> Box(Modifier.width(14.dp).height(5.dp).clip(CircleShape).background(C.Gold))
+                i == index -> Box(Modifier.size(6.dp).clip(CircleShape).background(C.Gold))
+                else -> Box(Modifier.width(14.dp).height(5.dp).clip(CircleShape).background(C.Border))
+            }
+        }
+    }
+}
+
+/** The "FT" team badge. */
+@Composable
+fun FtBadge(size: Dp = 44.dp, dashed: Boolean = false) {
+    Box(
+        Modifier.size(size).then(if (dashed) Modifier.dashedBorder(C.Gold, size * 0.3f) else Modifier.border(1.5.dp, C.Gold, RoundedCornerShape(size * 0.3f)))
+            .clip(RoundedCornerShape(size * 0.3f)).background(C.Surface),
+        contentAlignment = Alignment.Center,
+    ) { Text("FT", color = C.Gold, fontSize = (size.value * 0.34f).sp, fontWeight = FontWeight.ExtraBold) }
+}
+
+/** A person shown as a rounded square with the first letter (or their picture). */
+@Composable
+fun InitialTile(name: String?, size: Dp, avatar: String? = null, dashed: Boolean = false, warm: Boolean = false) {
+    val shape = RoundedCornerShape(size * 0.3f)
+    Box(
+        Modifier.size(size).then(if (dashed) Modifier.dashedBorder(C.Gold, size * 0.3f) else Modifier.border(1.dp, C.Border, shape))
+            .padding(if (dashed) 4.dp else 0.dp).clip(shape)
+            .background(if (warm) Color(0xFF3A2A12) else C.Surface),
+        contentAlignment = Alignment.Center,
+    ) {
+        val src = Media.image(avatar, 256)
+        if (src != null) AsyncImage(model = src, contentDescription = name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        else Text((name ?: "?").trim().take(1).uppercase(), color = C.Gold, fontSize = (size.value * 0.42f).sp, fontWeight = FontWeight.ExtraBold)
+    }
+}
+
+fun Modifier.dashedBorder(color: Color, radius: Dp, width: Dp = 2.dp): Modifier = this.drawBehind {
+    val w = width.toPx()
+    drawRoundRect(
+        color = color,
+        topLeft = androidx.compose.ui.geometry.Offset(w / 2, w / 2),
+        size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
+        cornerRadius = CornerRadius(radius.toPx()),
+        style = Stroke(width = w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(w * 4, w * 2.5f))),
+    )
+}
+
+/** Placeholder looks (navy / gold / silver) so empty thumbnails still feel designed. */
+fun placeholderBrush(seed: String): Brush = when ((seed.hashCode() and 0x7fffffff) % 3) {
+    0 -> Brush.linearGradient(listOf(Color(0xFF214A6B), Color(0xFF0E2235)))
+    1 -> Brush.linearGradient(listOf(Color(0xFFB98A1E), Color(0xFF3A2A10)))
+    else -> Brush.linearGradient(listOf(Color(0xFFDDE5EC), Color(0xFF9FB0BF)))
+}
+
+/** The picture behind a file: image itself, video thumbnail, or a designed placeholder. */
+@Composable
+fun FileCover(f: ClientFile, modifier: Modifier = Modifier, width: Int = 480) {
+    Box(modifier.background(placeholderBrush(f.id)), contentAlignment = Alignment.Center) {
+        val src = when (f.type) {
+            "Image" -> Media.image(f.url, width)
+            else -> Media.image(f.thumbnail, width)
+        }
+        if (src != null) AsyncImage(model = src, contentDescription = f.title(), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        else if (f.type == "Document" || f.type == "Link") Icon(Ic.File, null, tint = C.Ink.copy(alpha = 0.8f), modifier = Modifier.size(30.dp))
+    }
+}
+
+/** Grid tile: cover, ▶ for videos, gold dot = waiting for the client. */
+@Composable
+fun MediaTile(f: ClientFile, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Box(modifier.clip(shape).border(1.dp, C.Border.copy(alpha = 0.5f), shape).clickable(onClick = onClick)) {
+        FileCover(f, Modifier.fillMaxSize())
+        if (f.type == "Video") {
+            Row(
+                Modifier.align(Alignment.TopEnd).padding(7.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = 6.dp, vertical = 3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) { Icon(Ic.Play, null, tint = Color.White, modifier = Modifier.size(13.dp)) }
+        }
+        when (f.status) {
+            "ready_for_review" -> Box(Modifier.align(Alignment.BottomStart).padding(9.dp).size(11.dp).clip(CircleShape).background(C.Gold).border(1.5.dp, Color.White.copy(alpha = 0.7f), CircleShape))
+            "revision_requested" -> Box(Modifier.align(Alignment.BottomStart).padding(9.dp).size(11.dp).clip(CircleShape).background(C.Red))
+        }
+    }
+}
+
+@Composable
+fun GoldPill(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text, color = C.Bg, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1,
+        modifier = modifier.clip(RoundedCornerShape(10.dp)).background(GoldBrush).padding(horizontal = 10.dp, vertical = 5.dp),
+    )
+}
+
+@Composable
+fun OutlinePill(text: String, color: Color = C.Gold) {
+    Text(
+        text, color = color, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1,
+        modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(color.copy(alpha = 0.12f))
+            .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(10.dp)).padding(horizontal = 10.dp, vertical = 4.dp),
+    )
+}
+
+@Composable
+fun SectionTitle(text: String, modifier: Modifier = Modifier, trailing: String? = null) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(text, color = C.Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+        if (trailing != null) Text(trailing, color = C.Muted, fontSize = 12.sp)
+    }
+}
+
+/** Small numbered step label for forms ("1  Art des Termins"). */
+@Composable
+fun StepLabel(n: Int, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(22.dp).clip(RoundedCornerShape(7.dp)).border(1.dp, C.Border, RoundedCornerShape(7.dp)), contentAlignment = Alignment.Center) {
+            Text(n.toString(), color = C.Gold, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(text, color = C.Muted, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+/** Round icon with a label under it (profile quick actions). */
+@Composable
+fun CircleAction(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(modifier.clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Box(
+            Modifier.size(58.dp).clip(RoundedCornerShape(20.dp)).background(C.Surface.copy(alpha = 0.8f)).border(1.dp, C.Border, RoundedCornerShape(20.dp)),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, null, tint = C.Ink, modifier = Modifier.size(22.dp)) }
+        Text(label, color = C.Ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+    }
+}
+
+/** Selectable chip used in filters and forms. */
+@Composable
+fun ChoiceChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, strike: Boolean = false, height: Dp = 44.dp) {
+    val shape = RoundedCornerShape(14.dp)
+    Box(
+        modifier.height(height).clip(shape)
+            .then(if (selected) Modifier.background(GoldBrush) else Modifier.background(C.Surface.copy(alpha = 0.7f)))
+            .border(1.dp, if (selected) C.Gold else C.Border, shape)
+            .clickable(enabled = enabled, onClick = onClick).padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text, color = when { selected -> C.Bg; !enabled -> C.Faint; else -> C.Ink }, fontSize = 15.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1,
+            textDecoration = if (strike) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+        )
+    }
+}
