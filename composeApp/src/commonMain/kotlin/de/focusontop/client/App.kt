@@ -60,6 +60,8 @@ import de.focusontop.client.ui.PostScreen
 import de.focusontop.client.ui.ClientProfileScreen
 import de.focusontop.client.ui.DiscoverScreen
 import de.focusontop.client.ui.StoryCameraScreen
+import de.focusontop.client.ui.FaceIdSheet
+import de.focusontop.client.ui.FaceIdLockScreen
 import de.focusontop.client.ui.ForgotScreen
 import de.focusontop.client.ui.FtTheme
 import de.focusontop.client.ui.LoginScreen
@@ -151,6 +153,15 @@ fun App(debugStartScreen: Screen? = null, debugLang: de.focusontop.client.i18n.L
                             modifier = Modifier.clip(RoundedCornerShape(16.dp)).background(C.Gold).padding(horizontal = 18.dp, vertical = 12.dp),
                         )
                     }
+                }
+                // Face ID / biometric opt-in (shown once after a fresh login)
+                if (state.faceIdPromptPending) {
+                    FaceIdSheet(onEnable = { state.enableFaceId() }, onDismiss = { state.dismissFaceIdPrompt() })
+                }
+                // Soft re-entry gate on subsequent launches when Face ID is enabled — covers
+                // Main until biometrics succeed or fail; never permanently locks the user out.
+                if (state.faceIdLocked) {
+                    FaceIdLockScreen(onRetry = { state.unlockFaceId() })
                 }
             }
         }

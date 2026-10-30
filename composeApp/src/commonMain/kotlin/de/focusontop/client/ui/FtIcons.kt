@@ -81,6 +81,11 @@ object Ic {
     val Pencil = lucide("pencil-line", "M12 20h9", "M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z")
     val Paperclip = lucide("paperclip", "m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48")
     val Mic = lucide("mic", "M12 19v3", "M19 10v2a7 7 0 0 1-14 0v-2", rr(9f, 2f, 6f, 13f, 3f))
+    val ScanFace = lucide(
+        "scan-face",
+        "M3 7V5a2 2 0 0 1 2-2h2", "M17 3h2a2 2 0 0 1 2 2v2", "M21 17v2a2 2 0 0 1-2 2h-2", "M7 21H5a2 2 0 0 1-2-2v-2",
+        "M8 14s1.5 2 4 2 4-2 4-2", "M9 9h.01", "M15 9h.01",
+    )
     val UserPlus = lucide("user-plus", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", c(9f, 7f, 4f), "M19 8v6", "M22 11h-6")
     val Users = lucide("users", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", c(9f, 7f, 4f), "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75")
     val PlusBold = lucide("plus", "M5 12h14", "M12 5v14", width = 2f)

@@ -324,6 +324,27 @@ actual fun rememberVoicePlayer(): VoicePlayer {
     return player
 }
 
+/* ───────────── Face ID / biometric unlock ───────────── */
+/* Written against the standard LocalAuthentication Kotlin/Native bindings —
+ * NOT verified by CI (no macOS runner here to compile the iOS target). */
+
+actual suspend fun biometricAvailable(): Boolean {
+    val context = platform.LocalAuthentication.LAContext()
+    return context.canEvaluatePolicy(platform.LocalAuthentication.LAPolicyDeviceOwnerAuthenticationWithBiometrics, error = null)
+}
+
+actual suspend fun biometricAuthenticate(reason: String): Boolean = suspendCancellableCoroutine { cont ->
+    val context = platform.LocalAuthentication.LAContext()
+    context.evaluatePolicy(
+        platform.LocalAuthentication.LAPolicyDeviceOwnerAuthenticationWithBiometrics,
+        localizedReason = reason,
+    ) { success, _ ->
+        dispatch_async(dispatch_get_main_queue()) {
+            if (cont.isActive) cont.resume(success, null)
+        }
+    }
+}
+
 actual fun localDateTime(epochMs: Long): String = NSDateFormatter().apply {
     dateFormat = "yyyy-MM-dd HH:mm"
     locale = NSLocale(localeIdentifier = "en_US_POSIX")

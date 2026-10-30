@@ -747,3 +747,68 @@ fun NotificationsPermissionScreen(state: AppState) {
         Spacer(Modifier.height(20.dp))
     }
 }
+
+/** Brief full-screen cover shown while the OS biometric prompt is up on relaunch.
+ *  The prompt itself is driven by the platform (BiometricPrompt / LAContext); this is
+ *  just the branded backdrop, with a manual "عرض بدون Face ID" skip so a failed or
+ *  unavailable sensor never locks the user out. */
+@Composable
+fun FaceIdLockScreen(onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Box(Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)).background(C.Gold.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                Icon(Ic.ScanFace, null, tint = C.GoldLabel, modifier = Modifier.size(36.dp))
+            }
+            Text(tr("Entsperren mit Face ID …", "Unlocking with Face ID …", "جارٍ فتح القفل بواسطة Face ID…"), color = C.Ink, style = T.Body, fontWeight = FontWeight.SemiBold)
+            Text(
+                tr("Weiter ohne Face ID", "Continue without Face ID", "الاستمرار بدون Face ID"),
+                color = C.Muted, style = T.Footnote, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable(onClick = onRetry).padding(8.dp),
+            )
+        }
+    }
+}
+
+/* ───────────── 03b · Zugang · Face ID (Figma node 2041:2054) ───────────── */
+@Composable
+fun FaceIdSheet(onEnable: () -> Unit, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(
+            Modifier.fillMaxSize().background(C.Scrim)
+                .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onDismiss),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            Column(
+                Modifier.fillMaxWidth().clip(R.SheetShape).background(C.Surface)
+                    .clickable(interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {}
+                    .navigationBarsPadding().padding(horizontal = 24.dp, vertical = 8.dp).padding(bottom = 30.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Box(Modifier.width(36.dp).height(5.dp).clip(RoundedCornerShape(3.dp)).background(C.Separator))
+                Box(Modifier.size(72.dp).clip(RoundedCornerShape(20.dp)).background(C.Gold.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
+                    Icon(Ic.ScanFace, null, tint = C.GoldLabel, modifier = Modifier.size(36.dp))
+                }
+                Text(
+                    tr("Schneller Zugang mit Face ID", "Faster sign-in with Face ID", "دخول أسرع باستخدام Face ID"),
+                    color = C.Ink, style = T.Title3, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    tr("Beim nächsten Mal reicht ein Blick. Du kannst das jederzeit in den Einstellungen ändern.",
+                        "Next time, a glance is all it takes. You can change this anytime in settings.",
+                        "في المرة القادمة تكفيك نظرة. يمكنك تغيير ذلك في أي وقت من الإعدادات."),
+                    color = C.Muted, style = T.BodyS, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
+                )
+                Box(
+                    Modifier.fillMaxWidth().height(50.dp).clip(R.Pill).background(C.Gold).clickable(onClick = onEnable),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(tr("Face ID aktivieren", "Enable Face ID", "تفعيل Face ID"), color = C.OnAccent, style = T.Body, fontWeight = FontWeight.SemiBold)
+                }
+                Text(
+                    tr("Später", "Later", "لاحقًا"), color = C.Muted, style = T.Body, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable(onClick = onDismiss).padding(vertical = 6.dp),
+                )
+            }
+        }
+    }
+}

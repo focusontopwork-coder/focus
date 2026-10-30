@@ -89,6 +89,22 @@ class AppState {
     var loading by mutableStateOf(false)
         private set
 
+    // Face ID / biometric opt-in (Figma "03b · Zugang · Face ID")
+    var faceIdPromptPending by mutableStateOf(false)
+        private set
+    var faceIdLocked by mutableStateOf(false)
+        private set
+    val faceIdEnabled: Boolean get() = Prefs.get("faceid_enabled") == "1"
+    fun enableFaceId() { Prefs.set("faceid_enabled", "1"); Prefs.set("faceid_asked", "1"); faceIdPromptPending = false }
+    fun dismissFaceIdPrompt() { Prefs.set("faceid_asked", "1"); faceIdPromptPending = false }
+    fun unlockFaceId() { faceIdLocked = false }
+    private fun maybeOfferFaceId() {
+        if (Prefs.get("faceid_asked") != null) return
+        scope.launch {
+            if (de.focusontop.client.platform.biometricAvailable()) faceIdPromptPending = true
+        }
+    }
+
     fun go(screen: Screen) { stack.add(screen) }
     fun replaceAll(screen: Screen) { stack.clear(); stack.add(screen) }
     fun back(): Boolean {
@@ -125,6 +141,13 @@ class AppState {
                 if (me.role != "client") { signOut(); return@launch }
                 user = me
                 replaceAll(Screen.Main)
+                if (faceIdEnabled) {
+                    faceIdLocked = true
+                    scope.launch {
+                        de.focusontop.client.platform.biometricAuthenticate(biometricPromptReason())
+                        faceIdLocked = false // proceed regardless of result — never lock the user out
+                    }
+                }
                 refresh()
                 PushBridge.token.value?.let { registerPush(it) }
             } catch (e: ApiError) {
@@ -148,9 +171,16 @@ class AppState {
         markWelcomed()
         replaceAll(Screen.Main)
         tab = Tab.HOME
+        maybeOfferFaceId()
         refresh()
         PushBridge.token.value?.let { registerPush(it) }
         return true
+    }
+
+    private fun biometricPromptReason(): String = when (lang) {
+        Lang.AR -> "تسجيل الدخول إلى Focus On Top"
+        Lang.DE -> "Bei Focus On Top anmelden"
+        else -> "Sign in to Focus On Top"
     }
 
     fun refresh() {

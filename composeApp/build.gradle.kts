@@ -78,6 +78,8 @@ kotlin {
             implementation(libs.androidx.credentials)
             implementation(libs.androidx.credentials.play)
             implementation(libs.googleid)
+            implementation(libs.androidx.biometric)
+            implementation(libs.androidx.fragment)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

@@ -90,3 +90,6 @@ actual fun rememberVoicePlayer(): VoicePlayer = object : VoicePlayer {
     override val positionMs = 0L
     override fun toggle(url: String) { /* no-op */ }
 }
+
+actual suspend fun biometricAvailable(): Boolean = false
+actual suspend fun biometricAuthenticate(reason: String): Boolean = false

@@ -144,3 +144,11 @@ interface VoicePlayer {
 
 @Composable
 expect fun rememberVoicePlayer(): VoicePlayer
+
+/* ───────────── Face ID / biometric unlock (Figma "03b · Zugang · Face ID") ───────────── */
+
+/** True when the phone has a usable Face ID / Touch ID / fingerprint set up right now. */
+expect suspend fun biometricAvailable(): Boolean
+
+/** Shows the system biometric prompt. True = authenticated; false = failed, cancelled, or unavailable. */
+expect suspend fun biometricAuthenticate(reason: String): Boolean

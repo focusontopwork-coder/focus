@@ -1,14 +1,17 @@
 package de.focusontop.client
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
 import de.focusontop.client.platform.AndroidHost
 import de.focusontop.client.platform.PushBridge
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity (not plain ComponentActivity) — androidx.biometric's BiometricPrompt
+// needs one for the Face ID / fingerprint sheet (Figma "03b · Zugang · Face ID").
+// It still extends ComponentActivity under the hood, so setContent/enableEdgeToEdge work unchanged.
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),

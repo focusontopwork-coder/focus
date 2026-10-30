@@ -10,6 +10,11 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import kotlinx.coroutines.suspendCancellableCoroutine
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -387,4 +392,37 @@ actual fun ReelPlayer(url: String, playing: Boolean, modifier: Modifier) {
         },
         update = { it.player = player },
     )
+}
+
+/* ───────────── Face ID / biometric unlock ───────────── */
+
+private const val BIOMETRIC_AUTHENTICATORS = BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.BIOMETRIC_WEAK
+
+actual suspend fun biometricAvailable(): Boolean {
+    val ctx: Context = AndroidHost.activity?.get() ?: AndroidHost.app
+    return BiometricManager.from(ctx).canAuthenticate(BIOMETRIC_AUTHENTICATORS) == BiometricManager.BIOMETRIC_SUCCESS
+}
+
+actual suspend fun biometricAuthenticate(reason: String): Boolean {
+    val activity = AndroidHost.activity?.get() as? FragmentActivity ?: return false
+    return suspendCancellableCoroutine { cont ->
+        val callback = object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                if (cont.isActive) cont.resume(true, null)
+            }
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                if (cont.isActive) cont.resume(false, null)
+            }
+            // onAuthenticationFailed = one bad scan; the system sheet stays open for another try.
+        }
+        val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), callback)
+        val cancel = if (deviceLanguage == "ar") "إلغاء" else if (deviceLanguage == "de") "Abbrechen" else "Cancel"
+        val info = BiometricPrompt.PromptInfo.Builder()
+            .setTitle(reason)
+            .setAllowedAuthenticators(BIOMETRIC_AUTHENTICATORS)
+            .setNegativeButtonText(cancel)
+            .build()
+        prompt.authenticate(info)
+        cont.invokeOnCancellation { runCatching { prompt.cancelAuthentication() } }
+    }
 }
