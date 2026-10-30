@@ -100,3 +100,47 @@ expect fun rememberFilePicker(onPicked: (List<PickedFile>) -> Unit): FilePicker
 
 /** Epoch ms → "YYYY-MM-DD HH:mm" in the phone's time zone. */
 expect fun localDateTime(epochMs: Long): String
+
+/* ───────────── voice messages (Figma "Voice" chat bubble) ───────────── */
+
+/** A finished voice-message recording, ready to upload like any other [PickedFile]. */
+class RecordedVoice(
+    val path: String,
+    val durationMs: Long,
+    val mimeType: String,
+    val sizeBytes: Long,
+    val open: () -> ByteReader,
+)
+
+/** Mic-recording session for one voice message. Hold the instance for the lifetime of the press-and-hold gesture. */
+interface VoiceRecorder {
+    /** True while actively recording. */
+    val isRecording: Boolean
+    /** Elapsed recording time in ms, updated while [isRecording]. */
+    val elapsedMs: Long
+    /** Starts recording to a temp file. No-op if already recording. */
+    fun start()
+    /** Stops and returns the clip, or null if nothing usable was recorded (too short / never started). */
+    fun stop(): RecordedVoice?
+    /** Stops and discards the clip (slide-to-cancel). */
+    fun cancel()
+}
+
+/** True where microphone recording is actually wired up (Android). Other platforms show a disabled mic. */
+expect val voiceRecordingAvailable: Boolean
+
+@Composable
+expect fun rememberVoiceRecorder(): VoiceRecorder
+
+/** Plays one voice-message clip; a fresh instance per chat bubble. */
+interface VoicePlayer {
+    val isPlaying: Boolean
+    /** 0f–1f once duration is known; 0f otherwise. */
+    val progress: Float
+    val positionMs: Long
+    /** Starts playback of [url], or toggles play/pause if already loaded. */
+    fun toggle(url: String)
+}
+
+@Composable
+expect fun rememberVoicePlayer(): VoicePlayer

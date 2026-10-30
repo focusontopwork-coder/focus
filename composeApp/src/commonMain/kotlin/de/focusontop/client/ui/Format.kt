@@ -190,3 +190,17 @@ fun addDaysIso(isoDate: String, n: Int): String {
 
 /** Monday of the week that contains [isoDate]. */
 fun weekStart(isoDate: String): String = addDaysIso(isoDate, -weekdayIndex(isoDate))
+
+/** Voice message duration, "0:24" / "1:05" style (Figma "Voice" bubble). */
+fun formatVoiceDuration(ms: Long): String {
+    val totalSec = (ms / 1000).coerceAtLeast(0)
+    val m = totalSec / 60; val s = totalSec % 60
+    return "$m:${if (s < 10) "0$s" else "$s"}"
+}
+
+/** "voice-24s.m4a" (our own send-time naming, see MessagesScreen.kt) → 24000ms, or null if not a voice message. */
+fun voiceDurationFromFileName(name: String?): Long? {
+    val n = name ?: return null
+    val m = Regex("""^voice-(\d+)s\.""").find(n) ?: return null
+    return m.groupValues[1].toLongOrNull()?.times(1000)
+}

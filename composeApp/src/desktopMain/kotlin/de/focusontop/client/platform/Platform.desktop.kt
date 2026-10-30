@@ -70,3 +70,23 @@ actual fun rememberFilePicker(onPicked: (List<PickedFile>) -> Unit): FilePicker 
 actual fun localDateTime(epochMs: Long): String =
     java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         .format(java.time.Instant.ofEpochMilli(epochMs).atZone(java.time.ZoneId.systemDefault()))
+
+/* Screenshot harness only — no mic / audio playback needed for static QA renders. */
+actual val voiceRecordingAvailable: Boolean = false
+
+@Composable
+actual fun rememberVoiceRecorder(): VoiceRecorder = object : VoiceRecorder {
+    override val isRecording = false
+    override val elapsedMs = 0L
+    override fun start() { /* no-op */ }
+    override fun stop(): RecordedVoice? = null
+    override fun cancel() { /* no-op */ }
+}
+
+@Composable
+actual fun rememberVoicePlayer(): VoicePlayer = object : VoicePlayer {
+    override val isPlaying = false
+    override val progress = 0f
+    override val positionMs = 0L
+    override fun toggle(url: String) { /* no-op */ }
+}

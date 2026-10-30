@@ -58,11 +58,15 @@ import de.focusontop.client.data.Screen
 import de.focusontop.client.data.Tab
 import de.focusontop.client.i18n.LocalLang
 import de.focusontop.client.i18n.tr
+import de.focusontop.client.platform.PickedFile
 import de.focusontop.client.platform.localDateTime
 import de.focusontop.client.platform.nowEpochMs
 import de.focusontop.client.platform.openUrl
 import de.focusontop.client.platform.rememberFilePicker
+import de.focusontop.client.platform.rememberVoicePlayer
+import de.focusontop.client.platform.rememberVoiceRecorder
 import de.focusontop.client.platform.todayIso
+import de.focusontop.client.platform.voiceRecordingAvailable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -115,6 +119,24 @@ private fun ChatView(state: AppState, initialDraft: String, style: ChatStyle) {
         }
     }
 
+    // Figma "Voice" chat bubble: record → upload like any other attachment → send
+    // with a special "voice-<seconds>s" file name so the bubble renders a player.
+    val recorder = rememberVoiceRecorder()
+    var sendingVoice by remember { mutableStateOf(false) }
+    fun finishRecording(send: Boolean) {
+        val rec = recorder.stop()
+        if (!send || rec == null) { if (!send) recorder.cancel(); return }
+        sendingVoice = true
+        scope.launch {
+            try {
+                val picked = PickedFile("voice-${(rec.durationMs / 1000).coerceAtLeast(1)}s.m4a", rec.sizeBytes, rec.mimeType, null, rec.open)
+                val blob = state.uploadBlob(picked)
+                state.api.sendChat("", blob.url, picked.name, rec.mimeType)
+                load()
+            } catch (_: Exception) { state.showToast(failed) } finally { sendingVoice = false }
+        }
+    }
+
     Column(Modifier.fillMaxSize().background(C.Bg).statusBarsPadding().navigationBarsPadding().imePadding()) {
         if (style == ChatStyle.MAIN) TopBar(tr("Nachrichten", "Messages", "الرسائل"), onBack = { state.back() },
             actions = { HeaderIcon(Ic.SquarePen, tr("Neue Nachricht", "New message", "رسالة جديدة")) { state.go(Screen.Chat()) } })
@@ -155,34 +177,102 @@ private fun ChatView(state: AppState, initialDraft: String, style: ChatStyle) {
             }
         }
         if (style == ChatStyle.MAIN) {
-            // Figma "Composer": padding 8/16/30/16, gap 8 — attach 40 · field 42 · send 40 gold
+            // Figma "Composer": padding 8/16/30/16, gap 8 — attach 40 · field 42 · send 40 gold.
+            // Recording state replaces the text field with a live timer + cancel, Figma "Voice" style.
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 30.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(40.dp).clip(R.Pill).background(C.GlassStrong).clickable(enabled = !uploading) { picker.pickFiles() }, contentAlignment = Alignment.Center) {
-                    if (uploading) CircularProgressIndicator(Modifier.size(18.dp), color = C.Gold, strokeWidth = 2.dp)
-                    else Icon(Ic.Paperclip, tr("Datei anhängen", "Attach file", "إرفاق ملف"), tint = C.Ink, modifier = Modifier.size(20.dp))
+                if (recorder.isRecording) {
+                    Box(Modifier.size(40.dp).clip(R.Pill).background(C.GlassStrong).clickable { finishRecording(send = false) }, contentAlignment = Alignment.Center) {
+                        Icon(Ic.X, tr("Abbrechen", "Cancel", "إلغاء"), tint = C.Ink, modifier = Modifier.size(20.dp))
+                    }
+                    Row(Modifier.weight(1f).height(42.dp).clip(R.Pill).background(C.GlassStrong).padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(C.Red))
+                        Text(formatVoiceDuration(recorder.elapsedMs), color = C.Ink, style = T.BodyS, fontWeight = FontWeight.SemiBold)
+                    }
+                } else {
+                    Box(Modifier.size(40.dp).clip(R.Pill).background(C.GlassStrong).clickable(enabled = !uploading) { picker.pickFiles() }, contentAlignment = Alignment.Center) {
+                        if (uploading) CircularProgressIndicator(Modifier.size(18.dp), color = C.Gold, strokeWidth = 2.dp)
+                        else Icon(Ic.Paperclip, tr("Datei anhängen", "Attach file", "إرفاق ملف"), tint = C.Ink, modifier = Modifier.size(20.dp))
+                    }
+                    Box(Modifier.weight(1f).height(42.dp).clip(R.Pill).background(C.GlassStrong).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+                        if (draft.isEmpty()) Text(tr("Nachricht …", "Message …", "رسالة…"), color = C.Muted, style = T.BodyS)
+                        BasicTextField(draft, { draft = it }, maxLines = 4, textStyle = T.BodyS.copy(color = C.Ink), cursorBrush = SolidColor(C.Gold), modifier = Modifier.fillMaxWidth())
+                    }
                 }
-                Box(Modifier.weight(1f).height(42.dp).clip(R.Pill).background(C.GlassStrong).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-                    if (draft.isEmpty()) Text(tr("Nachricht …", "Message …", "رسالة…"), color = C.Muted, style = T.BodyS)
-                    BasicTextField(draft, { draft = it }, maxLines = 4, textStyle = T.BodyS.copy(color = C.Ink), cursorBrush = SolidColor(C.Gold), modifier = Modifier.fillMaxWidth())
-                }
-                Box(Modifier.size(40.dp).clip(R.Pill).background(C.Gold).clickable(enabled = !busy) { send() }, contentAlignment = Alignment.Center) {
-                    if (busy) CircularProgressIndicator(Modifier.size(18.dp), color = C.OnAccent, strokeWidth = 2.dp)
-                    else Icon(Ic.Send, tr("Senden", "Send", "إرسال"), tint = C.OnAccent, modifier = Modifier.size(20.dp))
+                Box(
+                    Modifier.size(40.dp).clip(R.Pill).background(if (recorder.isRecording) C.Red else C.Gold)
+                        .clickable(enabled = !busy && !sendingVoice && (draft.isNotBlank() || voiceRecordingAvailable)) {
+                            when {
+                                recorder.isRecording -> finishRecording(send = true)
+                                draft.isNotBlank() -> send()
+                                else -> recorder.start()
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (busy || sendingVoice) CircularProgressIndicator(Modifier.size(18.dp), color = C.OnAccent, strokeWidth = 2.dp)
+                    else when {
+                        recorder.isRecording -> Icon(Ic.Send, tr("Senden", "Send", "إرسال"), tint = C.OnAccent, modifier = Modifier.size(20.dp))
+                        draft.isNotBlank() -> Icon(Ic.Send, tr("Senden", "Send", "إرسال"), tint = C.OnAccent, modifier = Modifier.size(20.dp))
+                        else -> Icon(Ic.Mic, tr("Sprachnachricht aufnehmen", "Record voice message", "تسجيل رسالة صوتية"), tint = C.OnAccent, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         } else {
             // Figma 21: plus 22 · field 48 (glass-strong + hairline, Footnote) · arrow-up 22
             Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (uploading) CircularProgressIndicator(Modifier.size(22.dp), color = C.Gold, strokeWidth = 2.dp)
-                else Icon(Ic.Plus, tr("Datei anhängen", "Attach file", "إرفاق ملف"), tint = C.Ink, modifier = Modifier.size(22.dp).clickable { picker.pickFiles() })
-                Box(Modifier.weight(1f).height(48.dp).clip(R.Pill).background(C.GlassStrong).border(1.dp, C.StrokeGlass, R.Pill).padding(12.dp), contentAlignment = Alignment.CenterStart) {
-                    if (draft.isEmpty()) Text(tr("Nachricht schreiben …", "Write a message …", "اكتب رسالة…"), color = C.Muted, style = T.Footnote)
-                    BasicTextField(draft, { draft = it }, maxLines = 3, textStyle = T.Footnote.copy(color = C.Ink), cursorBrush = SolidColor(C.Gold), modifier = Modifier.fillMaxWidth())
+                if (recorder.isRecording) {
+                    Icon(Ic.X, tr("Abbrechen", "Cancel", "إلغاء"), tint = C.Ink, modifier = Modifier.size(22.dp).clickable { finishRecording(send = false) })
+                    Row(Modifier.weight(1f).height(48.dp).clip(R.Pill).background(C.GlassStrong).border(1.dp, C.StrokeGlass, R.Pill).padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(C.Red))
+                        Text(formatVoiceDuration(recorder.elapsedMs), color = C.Ink, style = T.Footnote, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (sendingVoice) CircularProgressIndicator(Modifier.size(22.dp), color = C.Gold, strokeWidth = 2.dp)
+                    else Icon(Ic.Send, tr("Senden", "Send", "إرسال"), tint = C.GoldLabel, modifier = Modifier.size(22.dp).clickable { finishRecording(send = true) })
+                } else {
+                    if (uploading) CircularProgressIndicator(Modifier.size(22.dp), color = C.Gold, strokeWidth = 2.dp)
+                    else Icon(Ic.Plus, tr("Datei anhängen", "Attach file", "إرفاق ملف"), tint = C.Ink, modifier = Modifier.size(22.dp).clickable { picker.pickFiles() })
+                    Box(Modifier.weight(1f).height(48.dp).clip(R.Pill).background(C.GlassStrong).border(1.dp, C.StrokeGlass, R.Pill).padding(12.dp), contentAlignment = Alignment.CenterStart) {
+                        if (draft.isEmpty()) Text(tr("Nachricht schreiben …", "Write a message …", "اكتب رسالة…"), color = C.Muted, style = T.Footnote)
+                        BasicTextField(draft, { draft = it }, maxLines = 3, textStyle = T.Footnote.copy(color = C.Ink), cursorBrush = SolidColor(C.Gold), modifier = Modifier.fillMaxWidth())
+                    }
+                    if (busy || sendingVoice) CircularProgressIndicator(Modifier.size(22.dp), color = C.Gold, strokeWidth = 2.dp)
+                    else if (draft.isBlank() && voiceRecordingAvailable) Icon(Ic.Mic, tr("Sprachnachricht aufnehmen", "Record voice message", "تسجيل رسالة صوتية"), tint = C.Muted, modifier = Modifier.size(22.dp).clickable { recorder.start() })
+                    else Icon(Ic.ArrowUp, tr("Senden", "Send", "إرسال"), tint = if (draft.isBlank()) C.Muted else C.Ink, modifier = Modifier.size(22.dp).clickable { send() })
                 }
-                if (busy) CircularProgressIndicator(Modifier.size(22.dp), color = C.Gold, strokeWidth = 2.dp)
-                else Icon(Ic.ArrowUp, tr("Senden", "Send", "إرسال"), tint = if (draft.isBlank()) C.Muted else C.Ink, modifier = Modifier.size(22.dp).clickable { send() })
             }
         }
+    }
+}
+
+/** Figma "Voice" chat bubble: play/pause circle · fixed waveform (lit up to playback progress) · duration. */
+private val VoiceBarHeights = listOf(6, 12, 18, 10, 22, 14, 8, 16, 20, 12, 6, 14, 18, 10, 8, 12, 16, 6, 10, 14)
+
+@Composable
+private fun VoiceBubble(url: String, durationMs: Long, mine: Boolean, modifier: Modifier = Modifier) {
+    val player = rememberVoicePlayer()
+    val circleBg = if (mine) C.OnAccent else C.Gold
+    val circleIcon = if (mine) C.Gold else C.OnAccent
+    val waveColor = if (mine) C.OnAccent else C.Ink
+    val litBars = if (player.progress > 0f) (player.progress * VoiceBarHeights.size).toInt().coerceIn(0, VoiceBarHeights.size) else 8
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(
+            Modifier.size(30.dp).clip(CircleShape).background(circleBg).clickable { player.toggle(url) },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(if (player.isPlaying) Ic.Pause else Ic.Play, null, tint = circleIcon, modifier = Modifier.size(12.dp))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            VoiceBarHeights.forEachIndexed { i, h ->
+                Box(Modifier.width(3.dp).height(h.dp).clip(RoundedCornerShape(1.5.dp))
+                    .background(waveColor.copy(alpha = if (i < litBars) 1f else 0.45f)))
+            }
+        }
+        Text(
+            if (player.isPlaying || player.positionMs > 0) formatVoiceDuration(if (player.isPlaying) player.positionMs else durationMs) else formatVoiceDuration(durationMs),
+            color = waveColor, style = T.Caption, fontWeight = FontWeight.SemiBold, maxLines = 1,
+        )
     }
 }
 
@@ -209,7 +299,10 @@ private fun Bubble(m: ChatMessage, style: ChatStyle) {
                 }
             }
             val fileUrl = m.fileData?.takeIf { it.startsWith("/uploads/") || it.startsWith("http") }
-            if (fileUrl != null) {
+            val voiceDuration = voiceDurationFromFileName(m.fileName)
+            if (fileUrl != null && voiceDuration != null) {
+                VoiceBubble(fileUrl, voiceDuration, mine, modifier = Modifier.padding(horizontal = if (img != null) 8.dp else 0.dp))
+            } else if (fileUrl != null) {
                 Row(Modifier.padding(horizontal = if (img != null) 8.dp else 0.dp).clickable { Media.download(fileUrl, m.fileName)?.let(::openUrl) }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Ic.Paperclip, null, tint = if (mine) C.OnAccent else C.GoldLabel, modifier = Modifier.size(16.dp))
                     Text(m.fileName ?: "Datei", color = fg, style = T.BodyS, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)

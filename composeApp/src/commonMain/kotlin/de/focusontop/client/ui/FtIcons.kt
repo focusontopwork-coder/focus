@@ -73,6 +73,7 @@ object Ic {
     val More = lucide("ellipsis", c(12f, 12f, 1f), c(19f, 12f, 1f), c(5f, 12f, 1f))
     val Menu = More
     val Play = solid("play", "M6 3 20 12 6 21 6 3z")
+    val Pause = solid("pause", rr(6f, 4f, 4f, 16f, 1f), rr(14f, 4f, 4f, 16f, 1f))
     val Video = lucide("video", "m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5", rr(2f, 6f, 14f, 12f, 2f))
     val Image = lucide("image", rr(3f, 3f, 18f, 18f, 2f), c(9f, 9f, 2f), "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21")
     val Camera = lucide("camera", "M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z", c(12f, 13f, 3f))

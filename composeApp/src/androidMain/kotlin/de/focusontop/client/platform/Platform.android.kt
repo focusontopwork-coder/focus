@@ -12,7 +12,10 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -227,6 +230,138 @@ actual fun rememberFilePicker(onPicked: (List<PickedFile>) -> Unit): FilePicker 
 actual fun localDateTime(epochMs: Long): String =
     java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         .format(java.time.Instant.ofEpochMilli(epochMs).atZone(java.time.ZoneId.systemDefault()))
+
+/* ───────────── voice messages ───────────── */
+
+actual val voiceRecordingAvailable: Boolean = true
+
+private fun hasRecordAudioPermission(ctx: Context): Boolean =
+    ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+/** Minimum clip length kept — shorter taps are treated as an accidental tap, not a message. */
+private const val MIN_VOICE_MS = 700L
+
+private class AndroidVoiceRecorder(private val ctx: Context, private val onPermissionNeeded: () -> Unit) : VoiceRecorder {
+    private var recorder: android.media.MediaRecorder? = null
+    private var file: java.io.File? = null
+    private var startedAt = 0L
+    override var isRecording by mutableStateOf(false)
+        private set
+    override var elapsedMs by mutableStateOf(0L)
+        private set
+
+    fun tick() { if (isRecording) elapsedMs = System.currentTimeMillis() - startedAt }
+
+    override fun start() {
+        if (isRecording) return
+        if (!hasRecordAudioPermission(ctx)) { onPermissionNeeded(); return }
+        val f = java.io.File.createTempFile("voice_", ".m4a", ctx.cacheDir)
+        @Suppress("DEPRECATION")
+        val r = if (Build.VERSION.SDK_INT >= 31) android.media.MediaRecorder(ctx) else android.media.MediaRecorder()
+        try {
+            r.setAudioSource(android.media.MediaRecorder.AudioSource.MIC)
+            r.setOutputFormat(android.media.MediaRecorder.OutputFormat.MPEG_4)
+            r.setAudioEncoder(android.media.MediaRecorder.AudioEncoder.AAC)
+            r.setAudioEncodingBitRate(64_000)
+            r.setAudioSamplingRate(44_100)
+            r.setOutputFile(f.absolutePath)
+            r.prepare()
+            r.start()
+            recorder = r; file = f; startedAt = System.currentTimeMillis()
+            isRecording = true; elapsedMs = 0L
+        } catch (_: Exception) {
+            runCatching { r.release() }
+            f.delete()
+        }
+    }
+
+    private fun stopRecorderQuiet(): Long {
+        val dur = System.currentTimeMillis() - startedAt
+        runCatching { recorder?.stop() }
+        runCatching { recorder?.release() }
+        recorder = null
+        isRecording = false
+        return dur
+    }
+
+    override fun stop(): RecordedVoice? {
+        if (!isRecording) return null
+        val dur = stopRecorderQuiet()
+        val f = file ?: return null
+        file = null
+        if (dur < MIN_VOICE_MS || !f.exists() || f.length() <= 0) { f.delete(); return null }
+        return RecordedVoice(f.absolutePath, dur, "audio/mp4", f.length()) {
+            StreamReader(java.io.FileInputStream(f))
+        }
+    }
+
+    override fun cancel() {
+        if (isRecording) stopRecorderQuiet()
+        file?.delete()
+        file = null
+    }
+}
+
+@Composable
+actual fun rememberVoiceRecorder(): VoiceRecorder {
+    val ctx = LocalContext.current
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) { /* granted or not — the next tap on the mic retries start() */ }
+    val recorder = remember { AndroidVoiceRecorder(ctx) { permission.launch(Manifest.permission.RECORD_AUDIO) } }
+    androidx.compose.runtime.LaunchedEffect(recorder.isRecording) {
+        while (recorder.isRecording) { recorder.tick(); kotlinx.coroutines.delay(100) }
+    }
+    return recorder
+}
+
+private class AndroidVoicePlayer(private val context: Context) : VoicePlayer {
+    private var player: ExoPlayer? = null
+    private var loadedUrl: String? = null
+    override var isPlaying by mutableStateOf(false)
+        private set
+    override var progress by mutableStateOf(0f)
+        private set
+    override var positionMs by mutableStateOf(0L)
+        private set
+
+    fun tick() {
+        val p = player ?: return
+        positionMs = p.currentPosition.coerceAtLeast(0)
+        val dur = p.duration
+        progress = if (dur > 0) (positionMs.toFloat() / dur).coerceIn(0f, 1f) else 0f
+        isPlaying = p.isPlaying
+    }
+
+    override fun toggle(url: String) {
+        val p = player
+        if (p != null && loadedUrl == url) {
+            if (p.isPlaying) p.pause() else { if (p.playbackState == androidx.media3.common.Player.STATE_ENDED) p.seekTo(0); p.play() }
+            isPlaying = p.isPlaying
+            return
+        }
+        p?.release()
+        val np = ExoPlayer.Builder(context).build().apply {
+            setMediaItem(MediaItem.fromUri(url))
+            prepare()
+            playWhenReady = true
+        }
+        player = np; loadedUrl = url; isPlaying = true
+    }
+
+    fun release() { player?.release(); player = null }
+}
+
+@Composable
+actual fun rememberVoicePlayer(): VoicePlayer {
+    val context = LocalContext.current
+    val player = remember { AndroidVoicePlayer(context) }
+    androidx.compose.runtime.LaunchedEffect(player) {
+        while (true) { player.tick(); kotlinx.coroutines.delay(150) }
+    }
+    DisposableEffect(player) { onDispose { player.release() } }
+    return player
+}
 
 @Composable
 actual fun ReelPlayer(url: String, playing: Boolean, modifier: Modifier) {

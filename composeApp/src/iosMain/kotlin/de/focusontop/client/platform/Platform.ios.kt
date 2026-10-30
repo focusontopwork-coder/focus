@@ -2,7 +2,10 @@ package de.focusontop.client.platform
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitViewController
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -195,6 +198,130 @@ actual fun rememberFilePicker(onPicked: (List<PickedFile>) -> Unit): FilePicker 
             override fun pickFolder() = presentPicker(true, { callback.value(it) })
         }
     }
+}
+
+/* ───────────── voice messages ───────────── */
+
+actual val voiceRecordingAvailable: Boolean = true
+
+private const val MIN_VOICE_MS = 700L
+
+@OptIn(ExperimentalForeignApi::class)
+private class IosVoiceRecorder : VoiceRecorder {
+    private var recorder: AVAudioRecorder? = null
+    private var fileUrl: NSURL? = null
+    private var startedAt = 0.0
+    override var isRecording by mutableStateOf(false)
+        private set
+    override var elapsedMs by mutableStateOf(0L)
+        private set
+
+    fun tick() { if (isRecording) elapsedMs = ((NSDate().timeIntervalSince1970 - startedAt) * 1000).toLong() }
+
+    private fun beginRecording() {
+        val session = AVAudioSession.sharedInstance()
+        session.setCategory(AVAudioSessionCategoryPlayAndRecord, error = null)
+        session.setActive(true, error = null)
+        val url = NSURL.fileURLWithPath(NSTemporaryDirectory() + "voice_" + NSUUID().UUIDString() + ".m4a")
+        val settings: Map<Any?, Any?> = mapOf(
+            AVFormatIDKey to platform.CoreAudioTypes.kAudioFormatMPEG4AAC,
+            AVSampleRateKey to 44100.0,
+            AVNumberOfChannelsKey to 1,
+            AVEncoderAudioQualityKey to AVAudioQualityHigh.value,
+        )
+        val rec = AVAudioRecorder(uRL = url, settings = settings, error = null)
+        if (rec == null) return
+        rec.record()
+        recorder = rec; fileUrl = url; startedAt = NSDate().timeIntervalSince1970
+        isRecording = true; elapsedMs = 0L
+    }
+
+    override fun start() {
+        if (isRecording) return
+        AVAudioSession.sharedInstance().requestRecordPermission { granted ->
+            if (granted) dispatch_async(dispatch_get_main_queue()) { beginRecording() }
+        }
+    }
+
+    override fun stop(): RecordedVoice? {
+        if (!isRecording) return null
+        recorder?.stop()
+        val dur = ((NSDate().timeIntervalSince1970 - startedAt) * 1000).toLong()
+        isRecording = false
+        val url = fileUrl ?: return null
+        fileUrl = null
+        val size = sizeOf(url)
+        if (dur < MIN_VOICE_MS || size <= 0) {
+            runCatching { NSFileManager.defaultManager.removeItemAtURL(url, error = null) }
+            return null
+        }
+        return RecordedVoice(url.path ?: "", dur, "audio/mp4", size) { HandleReader(url, false) }
+    }
+
+    override fun cancel() {
+        if (isRecording) { recorder?.stop(); isRecording = false }
+        fileUrl?.let { runCatching { NSFileManager.defaultManager.removeItemAtURL(it, error = null) } }
+        fileUrl = null
+    }
+}
+
+@Composable
+actual fun rememberVoiceRecorder(): VoiceRecorder {
+    val recorder = remember { IosVoiceRecorder() }
+    androidx.compose.runtime.LaunchedEffect(recorder.isRecording) {
+        while (recorder.isRecording) { recorder.tick(); kotlinx.coroutines.delay(100) }
+    }
+    return recorder
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private class IosVoicePlayer : VoicePlayer {
+    private var player: AVPlayer? = null
+    private var loadedUrl: String? = null
+    override var isPlaying by mutableStateOf(false)
+        private set
+    override var progress by mutableStateOf(0f)
+        private set
+    override var positionMs by mutableStateOf(0L)
+        private set
+
+    fun tick() {
+        val p = player ?: return
+        val pos = platform.CoreMedia.CMTimeGetSeconds(p.currentTime())
+        val dur = p.currentItem?.duration?.let { platform.CoreMedia.CMTimeGetSeconds(it) } ?: 0.0
+        positionMs = (pos * 1000).toLong().coerceAtLeast(0)
+        progress = if (dur.isFinite() && dur > 0) (pos / dur).coerceIn(0.0, 1.0).toFloat() else 0f
+        isPlaying = p.rate != 0f
+    }
+
+    override fun toggle(url: String) {
+        val p = player
+        if (p != null && loadedUrl == url) {
+            if (p.rate != 0f) p.pause() else {
+                val atEnd = p.currentItem?.let { platform.CoreMedia.CMTimeGetSeconds(p.currentTime()) >= platform.CoreMedia.CMTimeGetSeconds(it.duration) - 0.05 } == true
+                if (atEnd) p.seekToTime(platform.CoreMedia.CMTimeMake(0, 1))
+                p.play()
+            }
+            isPlaying = p.rate != 0f
+            return
+        }
+        p?.pause()
+        val np = NSURL.URLWithString(url)?.let { AVPlayer(uRL = it) } ?: return
+        player = np; loadedUrl = url
+        np.play(); isPlaying = true
+    }
+
+    fun release() { player?.pause(); player = null }
+}
+
+@Composable
+actual fun rememberVoicePlayer(): VoicePlayer {
+    val player = remember { IosVoicePlayer() }
+    androidx.compose.runtime.LaunchedEffect(player) {
+        while (true) { player.tick(); kotlinx.coroutines.delay(150) }
+    }
+    DisposableEffect(player) { onDispose { player.release() } }
+    return player
 }
 
 actual fun localDateTime(epochMs: Long): String = NSDateFormatter().apply {
