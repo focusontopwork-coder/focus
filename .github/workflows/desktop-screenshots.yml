@@ -1,0 +1,103 @@
+name: Desktop visual-QA screenshots
+
+# Renders every app screen (via the desktop visual-QA harness in
+# composeApp/src/desktopMain/.../Main.kt) headlessly with Xvfb, screenshots
+# each one with ImageMagick, and bundles them into a zip. This lets the
+# client see every real screen of the running app without installing an
+# APK or owning a device — useful for a quick side-by-side against Figma.
+# Manual-trigger only (workflow_dispatch) since it's QA tooling, not CI.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Xvfb + ImageMagick
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb imagemagick
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Warm up / compile the desktop harness
+        run: ./gradlew :composeApp:compileKotlinDesktop --no-daemon --stacktrace
+
+      - name: Capture every screen in DE and AR
+        run: |
+          set -o pipefail
+          Xvfb :99 -screen 0 1200x1600x24 &
+          XVFB_PID=$!
+          export DISPLAY=:99
+          sleep 2
+
+          mkdir -p screenshots
+          SCREENS="Welcome Onboarding PrivacyConsent NotificationsPermission Login Forgot Register Main Notifications Messages Settings EditProfile Legal Plans NewProject PlanCompare Files Invoices Projects Discover StoryCamera"
+
+          for LANGC in de ar; do
+            for S in $SCREENS; do
+              echo "=== $S ($LANGC) ==="
+              SCREEN="$S" LANG_CODE="$LANGC" WIDTH_DP=390 HEIGHT_DP=900 \
+                ./gradlew :composeApp:desktopRun --no-daemon -q \
+                > "screenshots/${S}_${LANGC}.gradle.log" 2>&1 &
+              APP_PID=$!
+              sleep 7
+              import -window root "screenshots/${S}_${LANGC}.png" || echo "capture failed for ${S}_${LANGC}" >> screenshots/_errors.log
+              kill $APP_PID 2>/dev/null || true
+              # desktopRun forks the actual java process; make sure nothing lingers
+              pkill -f "de.focusontop.client.MainKt" 2>/dev/null || true
+              wait $APP_PID 2>/dev/null || true
+              sleep 1
+            done
+          done
+
+          kill $XVFB_PID 2>/dev/null || true
+          # Keep only successful PNGs + the error log in the final bundle; drop the noisy gradle logs.
+          rm -f screenshots/*.gradle.log
+          ls -la screenshots
+
+      - name: Zip the screenshot bundle
+        if: always()
+        run: cd screenshots && zip -r ../focus-on-top-screenshots.zip . && cd ..
+
+      # actions/upload-artifact's download goes through Azure Blob Storage,
+      # which the AI sandbox that set this workflow up cannot reach — push
+      # the zip to its own disposable git branch too (plain git fetch works
+      # everywhere), same approach as the APK build workflow.
+      - name: Push screenshot bundle to a branch
+        if: always()
+        run: |
+          mkdir -p /tmp/shots-worktree
+          cd /tmp/shots-worktree
+          git init -q
+          git config user.email "actions@github.com"
+          git config user.name "github-actions"
+          git checkout -q -b shots-${{ github.run_id }}
+          cp "$GITHUB_WORKSPACE/focus-on-top-screenshots.zip" ./screenshots.zip 2>/dev/null || echo "no zip produced" > ./screenshots.zip
+          git add screenshots.zip
+          git commit -q -m "Screenshot bundle for run ${{ github.run_id }}"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push -q origin "shots-${{ github.run_id }}"
+
+      - name: Upload artifact (bonus, may not be downloadable from all networks)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-on-top-screenshots
+          path: focus-on-top-screenshots.zip
+          retention-days: 30

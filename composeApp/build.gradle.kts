@@ -97,6 +97,19 @@ compose.resources {
     generateResClass = always
 }
 
+// Runs the desktop visual-QA harness (see composeApp/src/desktopMain/.../Main.kt):
+// `SCREEN=Login LANG_CODE=ar ./gradlew :composeApp:desktopRun`. Headless CI uses
+// this + Xvfb + ImageMagick to screenshot every screen without a device/simulator.
+tasks.register<JavaExec>("desktopRun") {
+    group = "qa"
+    description = "Run the desktop screenshot-harness entry point (SCREEN/LANG_CODE env vars)."
+    val compilation = kotlin.targets.getByName("desktop").compilations
+        .getByName("main") as org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmCompilation
+    dependsOn(compilation.compileTaskProvider)
+    classpath = compilation.output.allOutputs + compilation.runtimeDependencyFiles!!
+    mainClass.set("de.focusontop.client.MainKt")
+}
+
 android {
     namespace = "de.focusontop.client"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
