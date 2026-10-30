@@ -70,3 +70,22 @@ jobs:
           name: focus-on-top-client-debug-apk
           path: ${{ steps.apk.outputs.path }}
           retention-days: 30
+
+      # actions/upload-artifact's download goes through Azure Blob Storage,
+      # which (like the raw job log) the AI sandbox that set this workflow up
+      # cannot reach. Push the APK itself to its own disposable git branch too
+      # — a plain git fetch of that branch works everywhere.
+      - name: Push APK to a branch (git fetch works everywhere)
+        if: success()
+        run: |
+          mkdir -p /tmp/apk-worktree
+          cd /tmp/apk-worktree
+          git init -q
+          git config user.email "actions@github.com"
+          git config user.name "github-actions"
+          git checkout -q -b apk-${{ github.run_id }}
+          cp "$GITHUB_WORKSPACE/${{ steps.apk.outputs.path }}" ./app-debug.apk
+          git add app-debug.apk
+          git commit -q -m "Debug APK for run ${{ github.run_id }}"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push -q origin "apk-${{ github.run_id }}"
