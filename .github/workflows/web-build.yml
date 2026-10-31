@@ -32,7 +32,9 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build the production web bundle
-        run: ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace 2>&1 | tee build.log
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace 2>&1 | tee build.log
 
       - name: Zip the web bundle
         if: always()
