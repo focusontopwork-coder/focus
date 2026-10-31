@@ -32,7 +32,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build the production web bundle
-        run: ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace
+        run: ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace 2>&1 | tee build.log
 
       - name: Zip the web bundle
         if: always()
@@ -45,11 +45,12 @@ jobs:
             echo "no dist dir produced" > web-bundle.zip
           fi
 
-      # actions/upload-artifact's download goes through Azure Blob Storage,
-      # which the AI sandbox that set this workflow up cannot reach — push
-      # the zip to its own disposable git branch too (plain git fetch works
-      # everywhere), same approach as the APK/screenshot workflows.
-      - name: Push web bundle to a branch
+      # actions/upload-artifact's download, and the GitHub logs API, both go
+      # through Azure Blob Storage, which the AI sandbox that set this
+      # workflow up cannot reach — push the zip AND the raw build log to a
+      # disposable git branch too (plain git fetch works everywhere), same
+      # approach as the APK/screenshot workflows.
+      - name: Push web bundle + build log to a branch
         if: always()
         run: |
           mkdir -p /tmp/web-worktree
@@ -59,8 +60,9 @@ jobs:
           git config user.name "github-actions"
           git checkout -q -b web-build-${{ github.run_id }}
           cp "$GITHUB_WORKSPACE/web-bundle.zip" ./web-bundle.zip
-          git add web-bundle.zip
-          git commit -q -m "Web bundle for run ${{ github.run_id }}"
+          cp "$GITHUB_WORKSPACE/build.log" ./build.log 2>/dev/null || echo "no build.log produced" > ./build.log
+          git add web-bundle.zip build.log
+          git commit -q -m "Web bundle + log for run ${{ github.run_id }}"
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           git push -q origin "web-build-${{ github.run_id }}"
 
