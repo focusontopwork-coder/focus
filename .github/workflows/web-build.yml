@@ -1,0 +1,73 @@
+name: Web build (wasmJs)
+
+# Builds the shared Compose UI for the browser (focusontop.de/mobile-web).
+# The AI sandbox that wrote this has no network access to Maven Central /
+# Google's Maven repo, so it can't compile this locally — CI is how its
+# output gets verified. Manual-trigger only, same pattern as the desktop
+# screenshot workflow.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build the production web bundle
+        run: ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --stacktrace
+
+      - name: Zip the web bundle
+        if: always()
+        run: |
+          DIST=composeApp/build/dist/wasmJs/productionExecutable
+          if [ -d "$DIST" ]; then
+            cd "$DIST" && zip -r "$GITHUB_WORKSPACE/web-bundle.zip" . && cd "$GITHUB_WORKSPACE"
+            ls -la "$DIST"
+          else
+            echo "no dist dir produced" > web-bundle.zip
+          fi
+
+      # actions/upload-artifact's download goes through Azure Blob Storage,
+      # which the AI sandbox that set this workflow up cannot reach — push
+      # the zip to its own disposable git branch too (plain git fetch works
+      # everywhere), same approach as the APK/screenshot workflows.
+      - name: Push web bundle to a branch
+        if: always()
+        run: |
+          mkdir -p /tmp/web-worktree
+          cd /tmp/web-worktree
+          git init -q
+          git config user.email "actions@github.com"
+          git config user.name "github-actions"
+          git checkout -q -b web-build-${{ github.run_id }}
+          cp "$GITHUB_WORKSPACE/web-bundle.zip" ./web-bundle.zip
+          git add web-bundle.zip
+          git commit -q -m "Web bundle for run ${{ github.run_id }}"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push -q origin "web-build-${{ github.run_id }}"
+
+      - name: Upload artifact (bonus, may not be downloadable from all networks)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-on-top-web-bundle
+          path: web-bundle.zip
+          retention-days: 30

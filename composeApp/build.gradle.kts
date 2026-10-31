@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -29,6 +30,23 @@ kotlin {
     // headlessly (no Mac, no device, no simulator) to compare pixel-for-
     // pixel against Figma. Never shipped to users; see :composeApp:run.
     jvm("desktop")
+
+    // Real client target: the shared UI compiled to Kotlin/Wasm and run in
+    // the browser, served to customers at focusontop.de/mobile-web. This
+    // replaces nothing on Android/iOS/desktop above — those stay untouched.
+    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
+    wasmJs {
+        moduleName = "focusOnTop"
+        browser {
+            commonWebpackConfig {
+                outputFileName = "focusOnTop.js"
+                devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
+                    port = 8090
+                }
+            }
+        }
+        binaries.executable()
+    }
 
     listOf(
         iosX64(),
@@ -89,6 +107,10 @@ kotlin {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.ktor.client.cio)
+        }
+        val wasmJsMain by getting
+        wasmJsMain.dependencies {
+            implementation(libs.ktor.client.js)
         }
     }
 }
