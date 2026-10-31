@@ -2,47 +2,65 @@ package de.focusontop.client.platform
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import kotlinx.browser.localStorage
-import kotlinx.browser.window
-import kotlin.js.Date
+
+/* ───────────── raw JS interop ─────────────
+ * Kotlin/Wasm's browser target has no `kotlin.js.Date` / `dynamic` (those are
+ * legacy Kotlin/JS-only APIs) — plain `js("...")` single-expression bodies,
+ * with Kotlin String/Int/Double/Boolean crossing the boundary automatically,
+ * is the supported way to touch the DOM/browser APIs here. */
+
+private fun jsDateHours(): Int = js("new Date().getHours()")
+private fun jsDateIso(): String = js("new Date().toISOString().slice(0, 10)")
+private fun jsNowMs(): Double = js("Date.now()")
+private fun jsLocalDateTime(epochMs: Double): String = js("""
+    (function (ms) {
+        var d = new Date(ms);
+        var p = function (n) { return n < 10 ? '0' + n : '' + n; };
+        return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+    })(epochMs)
+""")
+
+private fun jsLocalStorageGet(key: String): String? = js("localStorage.getItem(key)")
+private fun jsLocalStorageSet(key: String, value: String): Unit = js("localStorage.setItem(key, value)")
+private fun jsLocalStorageRemove(key: String): Unit = js("localStorage.removeItem(key)")
+
+private fun jsNavigatorLanguage(): String = js("navigator.language")
+private fun jsWindowOpen(url: String): Unit = js("window.open(url, '_blank')")
+private fun jsClipboardWriteText(text: String): Unit = js("navigator.clipboard.writeText(text)")
+private fun jsShareOrCopy(text: String): Unit = js("""
+    (function (t) {
+        if (navigator.share) { navigator.share({ text: t }); } else { navigator.clipboard.writeText(t); }
+    })(text)
+""")
+private fun jsRequestNotificationPermission(): Unit = js("""
+    (function () { if (window.Notification) { Notification.requestPermission(); } })()
+""")
 
 /** Browser's own localStorage — persists per-device, same spirit as SharedPreferences/NSUserDefaults. */
 actual object Prefs {
-    actual fun get(key: String): String? = localStorage.getItem(key)
+    actual fun get(key: String): String? = jsLocalStorageGet(key)
     actual fun set(key: String, value: String?) {
-        if (value == null) localStorage.removeItem(key) else localStorage.setItem(key, value)
+        if (value == null) jsLocalStorageRemove(key) else jsLocalStorageSet(key, value)
     }
 }
 
 actual val platformName: String = "web"
 
-actual val deviceLanguage: String get() = window.navigator.language.substringBefore("-")
+actual val deviceLanguage: String get() = jsNavigatorLanguage().substringBefore("-")
 
-actual fun currentHour(): Int = Date().getHours()
+actual fun currentHour(): Int = jsDateHours()
 
-actual fun todayIso(): String {
-    val d = Date()
-    val m = (d.getMonth() + 1).toString().padStart(2, '0')
-    val day = d.getDate().toString().padStart(2, '0')
-    return "${d.getFullYear()}-$m-$day"
-}
+actual fun todayIso(): String = jsDateIso()
 
 actual fun openUrl(url: String) {
-    window.open(url, "_blank")
+    jsWindowOpen(url)
 }
 
 actual fun shareText(text: String) {
-    // Web Share API where available; clipboard as the fallback (no system share sheet on desktop browsers).
-    val nav = window.navigator
-    if (js("typeof nav.share === 'function'") as Boolean) {
-        nav.asDynamic().share(js("({ text: text })"))
-    } else {
-        window.navigator.clipboard.writeText(text)
-    }
+    jsShareOrCopy(text)
 }
 
 /* Placeholder surface until a real <video> element is wired in through Compose
@@ -68,15 +86,14 @@ actual val googleSignInAvailable: Boolean = false
 actual suspend fun googleIdToken(webClientId: String): String? = null
 
 actual fun requestNotificationPermission() {
-    val n = window.asDynamic().Notification
-    if (n != null) n.requestPermission()
+    jsRequestNotificationPermission()
 }
 
 actual val appleSignInAvailable: Boolean = false
 
 actual suspend fun appleSignInToken(): String? = null
 
-actual fun nowEpochMs(): Long = Date.now().toLong()
+actual fun nowEpochMs(): Long = jsNowMs().toLong()
 
 @Composable
 actual fun rememberFilePicker(onPicked: (List<PickedFile>) -> Unit): FilePicker =
@@ -86,15 +103,7 @@ actual fun rememberFilePicker(onPicked: (List<PickedFile>) -> Unit): FilePicker 
         override fun pickFolder() { /* TODO */ }
     }
 
-actual fun localDateTime(epochMs: Long): String {
-    val d = Date(epochMs.toDouble())
-    val y = d.getFullYear()
-    val m = (d.getMonth() + 1).toString().padStart(2, '0')
-    val day = d.getDate().toString().padStart(2, '0')
-    val h = d.getHours().toString().padStart(2, '0')
-    val min = d.getMinutes().toString().padStart(2, '0')
-    return "$y-$m-$day $h:$min"
-}
+actual fun localDateTime(epochMs: Long): String = jsLocalDateTime(epochMs.toDouble())
 
 /* No mic capture yet (MediaRecorder API) — mic shows disabled, same as desktop/iOS today. */
 actual val voiceRecordingAvailable: Boolean = false

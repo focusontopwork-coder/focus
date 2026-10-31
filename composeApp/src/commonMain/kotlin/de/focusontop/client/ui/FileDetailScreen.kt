@@ -241,7 +241,9 @@ private fun MediaView(f: ClientFile) {
 private fun fmtTimecode(seconds: Double): String {
     val total = seconds.toInt().coerceAtLeast(0)
     val m = total / 60; val sec = total % 60
-    return "%d:%02d".format(m, sec)
+    // String.format is JVM/Native-only, not available on Kotlin/Wasm — this
+    // produces the identical "m:ss" output on every platform without it.
+    return "$m:${sec.toString().padStart(2, '0')}"
 }
 
 @Composable

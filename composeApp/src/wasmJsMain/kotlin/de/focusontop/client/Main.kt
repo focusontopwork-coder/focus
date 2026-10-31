@@ -1,5 +1,6 @@
 package de.focusontop.client
 
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.window.ComposeViewport
 import kotlinx.browser.document
 
@@ -9,6 +10,7 @@ import kotlinx.browser.document
  * Mounts the same shared App() used on Android/iOS into index.html's
  * #ComposeTarget div.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     ComposeViewport(document.getElementById("ComposeTarget")!!) {
         App()
