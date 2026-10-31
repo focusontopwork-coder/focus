@@ -251,6 +251,12 @@ class AppState {
         scope.launch { runCatching { api.like(p.id) }.onSuccess { replacePost(it) }.onFailure { replacePost(p) } }
     }
 
+    fun toggleSave(p: CPost) {
+        val flipped = p.copy(saved = !p.saved)
+        replacePost(flipped)
+        scope.launch { runCatching { api.save(p.id) }.onSuccess { replacePost(it) }.onFailure { replacePost(p) } }
+    }
+
     fun replacePost(p: CPost) {
         feed = feed?.map { if (it.id == p.id) p else it }
         me = me?.let { m -> m.copy(posts = m.posts.map { if (it.id == p.id) p else it }) }

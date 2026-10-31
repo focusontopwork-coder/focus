@@ -274,6 +274,10 @@ class Api(private val token: () -> String?) {
         })
     suspend fun deletePost(id: String) = deleteNoBody("/api/client-app/community/posts/$id")
     suspend fun like(id: String): CPost = post("/api/client-app/community/posts/$id/like", JsonObject(emptyMap()))
+    suspend fun save(id: String): CPost = post("/api/client-app/community/posts/$id/save", JsonObject(emptyMap()))
+    suspend fun recordView(id: String) = postNoBody("/api/client-app/community/posts/$id/view")
+    suspend fun recordShare(id: String) = postNoBody("/api/client-app/community/posts/$id/share")
+    suspend fun insights(id: String): CInsights = get("/api/client-app/community/posts/$id/insights")
     suspend fun postComments(id: String): List<CComment> = get("/api/client-app/community/posts/$id/comments")
     suspend fun addPostComment(id: String, text: String): CComment =
         post("/api/client-app/community/posts/$id/comments", buildJsonObject { put("text", text) })

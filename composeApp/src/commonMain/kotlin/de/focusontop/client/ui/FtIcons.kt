@@ -87,6 +87,8 @@ object Ic {
         "M8 14s1.5 2 4 2 4-2 4-2", "M9 9h.01", "M15 9h.01",
     )
     val UserPlus = lucide("user-plus", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", c(9f, 7f, 4f), "M19 8v6", "M22 11h-6")
+    /** Reel/post "Insights" trigger (Figma "F2 · Medien · Statistik und Zuschauer"). */
+    val ChartBar = lucide("chart-no-axes-column", "M18 20V10", "M12 20V4", "M6 20v-6")
     val Users = lucide("users", "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", c(9f, 7f, 4f), "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75")
     val PlusBold = lucide("plus", "M5 12h14", "M12 5v14", width = 2f)
     val Instagram = lucide("instagram", rr(2f, 2f, 20f, 20f, 5f), "M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z", "M17.5 6.5h.01")

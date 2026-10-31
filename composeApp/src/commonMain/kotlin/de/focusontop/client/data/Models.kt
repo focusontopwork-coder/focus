@@ -267,6 +267,7 @@ data class CPost(
     val likes: Int = 0,
     val liked: Boolean = false,
     val comments: Int = 0,
+    val saved: Boolean = false,
     val tags: List<CTag> = emptyList(),
     val createdAt: String? = null,
     val expiresAt: String? = null,
@@ -301,3 +302,10 @@ data class CPerson(val id: String = "", val name: String = "", val avatar: Strin
 
 @Serializable
 data class FollowState(val following: Boolean = false)
+
+/** A viewer row in the Reel/post "Insights" sheet (Figma "F2 · Medien · Statistik und Zuschauer"). */
+@Serializable
+data class CViewer(val id: String = "", val name: String = "", val avatar: String? = null, val following: Boolean = false, val liked: Boolean = false)
+
+@Serializable
+data class CInsights(val views: Int = 0, val likes: Int = 0, val comments: Int = 0, val saves: Int = 0, val shares: Int = 0, val viewers: List<CViewer> = emptyList())
