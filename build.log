@@ -1,0 +1,115 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+Type-safe project accessors is an incubating feature.
+
+> Configure project :composeApp
+w: file:///home/runner/work/focus/focus/composeApp/build.gradle.kts:37:55: 'ExperimentalWasmDsl' is deprecated. Moved to kotlin-gradle-plugin-annotations module
+w: file:///home/runner/work/focus/focus/composeApp/build.gradle.kts:38:5: This declaration needs opt-in. Its usage should be marked with '@org.jetbrains.kotlin.gradle.ExperimentalWasmDsl' or '@OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)'
+w: file:///home/runner/work/focus/focus/composeApp/build.gradle.kts:134:83: Unnecessary non-null assertion (!!) on a non-null receiver of type FileCollection
+w: Target 'desktop': Unable to create run task 'desktopRun' as there is already such a task registered
+
+w: The following Kotlin/Native targets cannot be built on this machine and are disabled:
+iosArm64, iosSimulatorArm64, iosX64
+To hide this message, add 'kotlin.native.ignoreDisabledTargets=true' to the Gradle properties.
+
+Configuration 'wasmJsNpmAggregated' was resolved during configuration time.
+This is a build performance and scalability issue.
+See https://github.com/gradle/gradle/issues/2298
+Run with --info for a stacktrace.
+Configuration 'wasmJsTestNpmAggregated' was resolved during configuration time.
+This is a build performance and scalability issue.
+See https://github.com/gradle/gradle/issues/2298
+Run with --info for a stacktrace.
+
+> Task :kotlinNodeJsSetup
+> Task :kotlinNpmCachesSetup
+> Task :kotlinRestoreYarnLock SKIPPED
+> Task :kotlinYarnSetup
+> Task :composeApp:wasmJsPackageJson
+> Task :composeApp:wasmJsTestPackageJson
+> Task :composeApp:wasmJsPublicPackageJson
+> Task :composeApp:wasmJsTestPublicPackageJson
+> Task :packageJsonUmbrella
+> Task :rootPackageJson
+
+> Task :kotlinNpmInstall
+(node:2621) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop > webpack-dev-server > rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop-test > karma > rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop-test > karma > glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop-test > karma-webpack > glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop-test > mocha > glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop > webpack-dev-server > rimraf > glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop > webpack-dev-server > sockjs > uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop-test > karma > glob > inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop-test > mocha > glob > inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+warning workspace-aggregator-ac9b3b3b-334f-4238-86e6-48a76abebb35 > focusOnTop > webpack-dev-server > webpack-dev-middleware > memfs@3.6.0: this will be v4
+warning Ignored scripts due to flag.
+
+> Task :kotlinStoreYarnLock
+> Task :composeApp:wasmJsResolveResourcesFromDependencies
+> Task :composeApp:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :composeApp:copyNonXmlValueResourcesForCommonMain
+> Task :composeApp:prepareComposeResourcesTaskForCommonMain
+> Task :composeApp:convertXmlValueResourcesForWasmJsMain NO-SOURCE
+> Task :composeApp:copyNonXmlValueResourcesForWasmJsMain NO-SOURCE
+> Task :composeApp:prepareComposeResourcesTaskForWasmJsMain NO-SOURCE
+> Task :composeApp:assembleWasmJsMainResources
+> Task :composeApp:wasmJsResolveSelfResourcesCopyHierarchicalMultiplatformResources
+> Task :composeApp:wasmJsAggregateResources
+> Task :composeApp:wasmJsProcessResources
+> Task :composeApp:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :composeApp:generateResourceAccessorsForCommonMain
+> Task :composeApp:generateResourceAccessorsForWasmJsMain NO-SOURCE
+> Task :composeApp:generateActualResourceCollectorsForWasmJsMain
+> Task :composeApp:generateComposeResClass
+> Task :composeApp:generateExpectResourceCollectorsForCommonMain
+> Task :kotlinBinaryenSetup
+> Task :composeApp:unpackSkikoWasmRuntime
+> Task :composeApp:processSkikoRuntimeForKWasm
+
+> Task :composeApp:compileKotlinWasmJs
+w: file:///home/runner/work/focus/focus/composeApp/src/commonMain/kotlin/de/focusontop/client/platform/Platform.kt:8:1 [EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING] 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. You can use -Xexpect-actual-classes flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///home/runner/work/focus/focus/composeApp/src/commonMain/kotlin/de/focusontop/client/platform/Platform.kt:8:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. You can use -Xexpect-actual-classes flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///home/runner/work/focus/focus/composeApp/src/commonMain/kotlin/de/focusontop/client/ui/CommunityScreens.kt:300:29 [SENSELESS_COMPARISON] Condition is always 'true'.
+w: file:///home/runner/work/focus/focus/composeApp/src/commonMain/kotlin/de/focusontop/client/ui/CommunityScreens.kt:300:29 Condition is always 'true'.
+w: file:///home/runner/work/focus/focus/composeApp/src/wasmJsMain/kotlin/de/focusontop/client/platform/Platform.wasmJs.kt:43:1 [EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING] 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. You can use -Xexpect-actual-classes flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+w: file:///home/runner/work/focus/focus/composeApp/src/wasmJsMain/kotlin/de/focusontop/client/platform/Platform.wasmJs.kt:43:1 'expect'/'actual' classes (including interfaces, objects, annotations, enums, and 'actual' typealiases) are in Beta. You can use -Xexpect-actual-classes flag to suppress this warning. Also see: https://youtrack.jetbrains.com/issue/KT-61573
+
+> Task :composeApp:wasmJsMainClasses
+> Task :composeApp:compileProductionExecutableKotlinWasmJs
+> Task :composeApp:compileProductionExecutableKotlinWasmJsOptimize
+> Task :composeApp:wasmJsProductionExecutableCompileSync
+
+> Task :composeApp:wasmJsBrowserProductionWebpack
+Critical dependency: the request of a dependency is an expression
+
+asset size limit: The following asset(s) exceed the recommended size limit (244 KiB).
+This can impact web performance.
+Assets: 
+  focusOnTop.js (534 KiB)
+  aa0b4631325daf4e7396.wasm (4.6 MiB)
+  dd568dbcd078c0adf7cf.wasm (7.91 MiB)
+
+entrypoint size limit: The following entrypoint(s) combined asset size exceeds the recommended limit (244 KiB). This can impact web performance.
+Entrypoints:
+  main (534 KiB)
+      focusOnTop.js
+
+webpack performance recommendations: 
+You can limit the size of your bundles by using import() or require.ensure to lazy load some parts of your application.
+For more info visit https://webpack.js.org/guides/code-splitting/
+
+
+> Task :composeApp:wasmJsBrowserDistribution
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1793476620152.json
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.10.2/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 10m 4s
+30 actionable tasks: 30 executed
